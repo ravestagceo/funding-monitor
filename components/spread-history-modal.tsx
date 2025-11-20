@@ -242,7 +242,7 @@ export function SpreadHistoryModal({ symbol, open, onOpenChange }: SpreadHistory
                   <div className="flex-1">
                     <div className="font-semibold text-foreground mb-1">Profitability Analysis</div>
                     <div className="text-sm text-muted-foreground">
-                      Spread was profitable (>0.01%) for{' '}
+                      Spread was profitable (&gt;0.01%) for{' '}
                       <span className="font-bold text-foreground">
                         {data.statistics.profitableMinutes} out of {data.statistics.totalMinutes}
                       </span>{' '}
