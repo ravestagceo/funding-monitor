@@ -39,10 +39,14 @@ export interface FundingSpreadDB {
 export interface FundingSpread {
   symbol: string
   binanceRate: number
+  binanceHourlyRate: number
+  binanceNextFunding?: number
   lighterRate: number
-  spreadPercent: number
+  lighterHourlyRate: number
+  lighterNextFunding?: number
+  spreadHourly: number
+  spreadDaily: number
+  spreadAnnual: number
   binanceMarkPrice?: number
-  lighterMarkPrice?: number
-  annualizedSpread?: number
   updatedAt: string
 }

@@ -47,6 +47,7 @@ export async function GET() {
 
     // Calculate spreads for matching symbols
     const spreads: SpreadMap = {}
+    const now = Date.now()
 
     lighterData.forEach((lighterItem) => {
       const symbol = lighterItem.symbol
@@ -66,16 +67,31 @@ export async function GET() {
         const binanceRate = parseFloat(binanceItem.lastFundingRate || '0')
         const lighterRate = lighterItem.rate
 
-        // Calculate spread as percentage difference
-        const spreadPercent = (binanceRate - lighterRate) * 100
+        // Calculate funding period for Binance (hours until next funding)
+        const nextFunding = binanceItem.nextFundingTime || now
+        const hoursUntilNext = Math.max(1, Math.round((nextFunding - now) / (1000 * 60 * 60)))
+
+        // Normalize to hourly rates
+        const binanceHourlyRate = binanceRate / hoursUntilNext
+        const lighterHourlyRate = lighterRate / 8 // Lighter rate is for 8 hours
+
+        // Calculate spreads
+        const spreadHourly = (binanceHourlyRate - lighterHourlyRate) * 100
+        const spreadDaily = spreadHourly * 24
+        const spreadAnnual = spreadHourly * 24 * 365
 
         spreads[symbol] = {
           symbol,
           binanceRate,
+          binanceHourlyRate,
+          binanceNextFunding: binanceItem.nextFundingTime,
           lighterRate,
-          spreadPercent,
+          lighterHourlyRate,
+          lighterNextFunding: Math.ceil(now / (1000 * 60 * 60)) * (1000 * 60 * 60), // Next hour
+          spreadHourly,
+          spreadDaily,
+          spreadAnnual,
           binanceMarkPrice: parseFloat(binanceItem.markPrice),
-          annualizedSpread: spreadPercent * 365 * 3, // 3 funding periods per day
           updatedAt: new Date().toISOString(),
         }
       }
@@ -83,7 +99,7 @@ export async function GET() {
 
     // Convert to array and sort by absolute spread
     const spreadsArray = Object.values(spreads).sort(
-      (a, b) => Math.abs(b.spreadPercent) - Math.abs(a.spreadPercent)
+      (a, b) => Math.abs(b.spreadHourly) - Math.abs(a.spreadHourly)
     )
 
     return NextResponse.json({

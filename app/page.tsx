@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { FundingSpread } from '@/lib/types'
-import { ArrowUpDown, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react'
+import { ArrowUpDown, RefreshCw, TrendingUp, Clock } from 'lucide-react'
 
 export default function Home() {
   const [spreads, setSpreads] = useState<FundingSpread[]>([])
@@ -71,16 +71,16 @@ export default function Home() {
           bValue = b.symbol
           break
         case 'spread':
-          aValue = Math.abs(a.spreadPercent)
-          bValue = Math.abs(b.spreadPercent)
+          aValue = Math.abs(a.spreadHourly)
+          bValue = Math.abs(b.spreadHourly)
           break
         case 'binance':
-          aValue = a.binanceRate
-          bValue = b.binanceRate
+          aValue = a.binanceHourlyRate
+          bValue = b.binanceHourlyRate
           break
         case 'lighter':
-          aValue = a.lighterRate
-          bValue = b.lighterRate
+          aValue = a.lighterHourlyRate
+          bValue = b.lighterHourlyRate
           break
       }
 
@@ -114,33 +114,46 @@ export default function Home() {
     return spread >= 0 ? `+${formatted}%` : `${formatted}%`
   }
 
+  const formatCountdown = (timestamp?: number) => {
+    if (!timestamp) return '-'
+    const now = Date.now()
+    const diff = timestamp - now
+    if (diff <= 0) return '0:00:00'
+
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
   const getSpreadColor = (spread: number) => {
     const absSpread = Math.abs(spread)
-    if (absSpread > 0.05) return 'text-red-600 font-bold'
-    if (absSpread > 0.02) return 'text-orange-600 font-semibold'
-    if (absSpread > 0.01) return 'text-yellow-600'
-    return 'text-gray-600'
+    if (absSpread > 0.05) return 'text-green-400 font-bold'
+    if (absSpread > 0.02) return 'text-emerald-400 font-semibold'
+    if (absSpread > 0.01) return 'text-teal-400'
+    return 'text-gray-400'
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-[1600px] mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold mb-2 text-primary">
             Funding Rate Monitor
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             Real-time funding rate spread tracking between Binance and Lighter DEX
           </p>
         </div>
 
-        <Card className="shadow-lg">
+        <Card className="shadow-lg border-border">
           <CardHeader>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-card-foreground">
                   <TrendingUp className="h-5 w-5" />
-                  Funding Spreads
+                  Funding Spreads (Hourly Normalized)
                 </CardTitle>
                 <CardDescription>
                   {filteredSpreads.length} pairs tracked
@@ -157,12 +170,12 @@ export default function Home() {
                   placeholder="Search symbol..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-xs"
+                  className="max-w-xs bg-secondary border-border text-foreground"
                 />
                 <button
                   onClick={fetchSpreads}
                   disabled={loading}
-                  className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                  className="p-2 rounded-md hover:bg-accent transition-colors disabled:opacity-50"
                   title="Refresh data"
                 >
                   <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
@@ -174,17 +187,17 @@ export default function Home() {
           <CardContent>
             {loading && spreads.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="border-border hover:bg-muted/50">
                       <TableHead>
                         <button
                           onClick={() => handleSort('symbol')}
-                          className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
+                          className="flex items-center gap-1 hover:text-foreground"
                         >
                           Symbol
                           <ArrowUpDown className="h-4 w-4" />
@@ -193,79 +206,81 @@ export default function Home() {
                       <TableHead>
                         <button
                           onClick={() => handleSort('binance')}
-                          className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
+                          className="flex items-center gap-1 hover:text-foreground"
                         >
-                          Binance Rate
+                          Binance (hourly)
                           <ArrowUpDown className="h-4 w-4" />
                         </button>
                       </TableHead>
                       <TableHead>
                         <button
                           onClick={() => handleSort('lighter')}
-                          className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
+                          className="flex items-center gap-1 hover:text-foreground"
                         >
-                          Lighter Rate
+                          Lighter (hourly)
                           <ArrowUpDown className="h-4 w-4" />
                         </button>
                       </TableHead>
                       <TableHead>
                         <button
                           onClick={() => handleSort('spread')}
-                          className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
+                          className="flex items-center gap-1 hover:text-foreground"
                         >
-                          Spread
+                          Spread/hour
                           <ArrowUpDown className="h-4 w-4" />
                         </button>
                       </TableHead>
+                      <TableHead>Daily APR</TableHead>
                       <TableHead>Annual APR</TableHead>
                       <TableHead className="text-right">Mark Price</TableHead>
+                      <TableHead className="text-right">
+                        <Clock className="h-4 w-4 inline mr-1" />
+                        Next Funding
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSpreads.map((spread) => (
-                      <TableRow key={spread.symbol} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <TableCell className="font-mono font-semibold">
+                      <TableRow key={spread.symbol} className="border-border hover:bg-muted/50">
+                        <TableCell className="font-mono font-semibold text-foreground">
                           {spread.symbol}
                         </TableCell>
-                        <TableCell className="font-mono">
-                          <div className="flex items-center gap-2">
-                            {formatRate(spread.binanceRate)}
-                            {spread.binanceRate > 0 ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
-                            )}
-                          </div>
+                        <TableCell className="font-mono text-sm">
+                          {formatRate(spread.binanceHourlyRate)}
                         </TableCell>
-                        <TableCell className="font-mono">
-                          <div className="flex items-center gap-2">
-                            {formatRate(spread.lighterRate)}
-                            {spread.lighterRate > 0 ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
-                            )}
-                          </div>
+                        <TableCell className="font-mono text-sm">
+                          {formatRate(spread.lighterHourlyRate)}
                         </TableCell>
-                        <TableCell className={`font-mono ${getSpreadColor(spread.spreadPercent)}`}>
-                          {formatSpread(spread.spreadPercent)}
+                        <TableCell className={`font-mono font-semibold ${getSpreadColor(spread.spreadHourly)}`}>
+                          {formatSpread(spread.spreadHourly)}
                         </TableCell>
                         <TableCell>
-                          {spread.annualizedSpread !== undefined && (
-                            <Badge
-                              variant={
-                                Math.abs(spread.annualizedSpread) > 50
-                                  ? 'destructive'
-                                  : Math.abs(spread.annualizedSpread) > 20
-                                  ? 'warning'
-                                  : 'secondary'
-                              }
-                            >
-                              {formatSpread(spread.annualizedSpread)}
-                            </Badge>
-                          )}
+                          <Badge
+                            variant={
+                              Math.abs(spread.spreadDaily) > 1
+                                ? 'success'
+                                : Math.abs(spread.spreadDaily) > 0.5
+                                ? 'secondary'
+                                : 'outline'
+                            }
+                          >
+                            {formatSpread(spread.spreadDaily)}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-gray-600 dark:text-gray-400">
+                        <TableCell>
+                          <Badge
+                            variant={
+                              Math.abs(spread.spreadAnnual) > 365
+                                ? 'success'
+                                : Math.abs(spread.spreadAnnual) > 180
+                                ? 'secondary'
+                                : 'outline'
+                            }
+                          >
+                            {formatSpread(spread.spreadAnnual)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm text-muted-foreground">
                           {spread.binanceMarkPrice
                             ? `$${spread.binanceMarkPrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
@@ -273,13 +288,16 @@ export default function Home() {
                               })}`
                             : '-'}
                         </TableCell>
+                        <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                          {formatCountdown(spread.binanceNextFunding)}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
 
                 {filteredSpreads.length === 0 && !loading && (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-12 text-muted-foreground">
                     No spreads found. Try a different search term.
                   </div>
                 )}
@@ -288,12 +306,12 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="mt-6 text-center text-sm text-muted-foreground">
           <p>
-            Data refreshes every 5 minutes • Spread = (Binance Rate - Lighter Rate) × 100%
+            All rates normalized to hourly • Data refreshes every 5 minutes
           </p>
           <p className="mt-1">
-            Annual APR assumes 3 funding periods per day (every 8 hours)
+            Spread = (Binance hourly - Lighter hourly) × 100%
           </p>
         </div>
       </div>
