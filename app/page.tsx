@@ -149,10 +149,33 @@ export default function Home() {
   }
 
   const getTokenIcon = (symbol: string) => {
-    // Use CoinGecko-style API for token icons
     const baseSymbol = symbol.replace('USDT', '').replace('1000', '')
-    // Fallback to a simple placeholder or use a CDN
-    return `https://assets.coincap.io/assets/icons/${baseSymbol.toLowerCase()}@2x.png`
+    // Try multiple CDN sources
+    return `https://cryptologos.cc/logos/${baseSymbol.toLowerCase()}-${baseSymbol.toLowerCase()}-logo.png`
+  }
+
+  const handleIconError = (e: React.SyntheticEvent<HTMLImageElement>, symbol: string) => {
+    const img = e.currentTarget
+    const baseSymbol = symbol.replace('USDT', '').replace('1000', '')
+
+    // Try fallback sources in order
+    if (!img.dataset.fallback) {
+      img.dataset.fallback = '1'
+      img.src = `https://assets.coincap.io/assets/icons/${baseSymbol.toLowerCase()}@2x.png`
+    } else if (img.dataset.fallback === '1') {
+      img.dataset.fallback = '2'
+      img.src = `https://s2.coinmarketcap.com/static/img/coins/64x64/${baseSymbol.toLowerCase()}.png`
+    } else {
+      // Show placeholder with first letter
+      img.style.display = 'none'
+      const parent = img.parentElement
+      if (parent && !parent.querySelector('.token-placeholder')) {
+        const placeholder = document.createElement('div')
+        placeholder.className = 'token-placeholder w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary'
+        placeholder.textContent = baseSymbol.charAt(0)
+        parent.insertBefore(placeholder, img)
+      }
+    }
   }
 
   const getBadgeVariant = (spread: number): 'success' | 'secondary' | 'outline' => {
@@ -274,10 +297,8 @@ export default function Home() {
                             <img
                               src={getTokenIcon(spread.symbol)}
                               alt={spread.symbol}
-                              className="w-6 h-6 rounded-full"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                              }}
+                              className="w-6 h-6 rounded-full object-cover"
+                              onError={(e) => handleIconError(e, spread.symbol)}
                             />
                             <span>{spread.symbol}</span>
                           </div>
