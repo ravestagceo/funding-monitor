@@ -345,6 +345,7 @@ export default function Home() {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-foreground hover:text-primary transition-all duration-200 cursor-pointer group"
                             title="Open on Binance"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <span className="group-hover:underline">{formatRate(spread.binanceHourlyRate)}</span>
                             <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -357,6 +358,7 @@ export default function Home() {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-foreground hover:text-primary transition-all duration-200 cursor-pointer group"
                             title="Open on Lighter"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <span className="group-hover:underline">{formatRate(spread.lighterHourlyRate)}</span>
                             <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
