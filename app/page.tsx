@@ -148,6 +148,20 @@ export default function Home() {
     return 'text-gray-400'
   }
 
+  const getTokenIcon = (symbol: string) => {
+    // Use CoinGecko-style API for token icons
+    const baseSymbol = symbol.replace('USDT', '').replace('1000', '')
+    // Fallback to a simple placeholder or use a CDN
+    return `https://assets.coincap.io/assets/icons/${baseSymbol.toLowerCase()}@2x.png`
+  }
+
+  const getBadgeVariant = (spread: number): 'success' | 'secondary' | 'outline' => {
+    const absSpread = Math.abs(spread)
+    if (absSpread > 1) return 'success'
+    if (absSpread > 0.5) return 'secondary'
+    return 'outline'
+  }
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto">
@@ -160,7 +174,7 @@ export default function Home() {
           </p>
         </div>
 
-        <Card className="shadow-lg border-border">
+        <Card className="shadow-xl border-border bg-card/50 backdrop-blur-sm">
           <CardHeader>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -203,10 +217,10 @@ export default function Home() {
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-border hover:bg-muted/50">
+                    <TableRow className="border-border hover:bg-transparent">
                       <TableHead>
                         <button
                           onClick={() => handleSort('symbol')}
@@ -254,20 +268,30 @@ export default function Home() {
                   </TableHeader>
                   <TableBody>
                     {filteredSpreads.map((spread) => (
-                      <TableRow key={spread.symbol} className="border-border hover:bg-muted/50">
+                      <TableRow key={spread.symbol} className="border-border hover:bg-accent/30 transition-colors">
                         <TableCell className="font-mono font-semibold text-foreground">
-                          {spread.symbol}
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={getTokenIcon(spread.symbol)}
+                              alt={spread.symbol}
+                              className="w-6 h-6 rounded-full"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                            <span>{spread.symbol}</span>
+                          </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
                           <a
                             href={getBinanceUrl(spread.symbol)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1.5 text-foreground hover:text-primary transition-all duration-200 cursor-pointer group"
                             title="Open on Binance"
                           >
-                            {formatRate(spread.binanceHourlyRate)}
-                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span className="group-hover:underline">{formatRate(spread.binanceHourlyRate)}</span>
+                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                           </a>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
@@ -275,39 +299,23 @@ export default function Home() {
                             href={getLighterUrl(spread.symbol)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1.5 text-foreground hover:text-primary transition-all duration-200 cursor-pointer group"
                             title="Open on Lighter"
                           >
-                            {formatRate(spread.lighterHourlyRate)}
-                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span className="group-hover:underline">{formatRate(spread.lighterHourlyRate)}</span>
+                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                           </a>
                         </TableCell>
                         <TableCell className={`font-mono font-semibold ${getSpreadColor(spread.spreadHourly)}`}>
                           {formatSpread(spread.spreadHourly)}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              Math.abs(spread.spreadDaily) > 1
-                                ? 'success'
-                                : Math.abs(spread.spreadDaily) > 0.5
-                                ? 'secondary'
-                                : 'outline'
-                            }
-                          >
+                          <Badge variant={getBadgeVariant(spread.spreadDaily)}>
                             {formatSpread(spread.spreadDaily)}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              Math.abs(spread.spreadAnnual) > 365
-                                ? 'success'
-                                : Math.abs(spread.spreadAnnual) > 180
-                                ? 'secondary'
-                                : 'outline'
-                            }
-                          >
+                          <Badge variant={getBadgeVariant(spread.spreadAnnual)}>
                             {formatSpread(spread.spreadAnnual)}
                           </Badge>
                         </TableCell>
