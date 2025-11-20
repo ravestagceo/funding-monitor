@@ -12,8 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { SpreadHistoryModal } from '@/components/spread-history-modal'
 import type { FundingSpread } from '@/lib/types'
-import { ArrowUpDown, RefreshCw, TrendingUp, Clock, ExternalLink } from 'lucide-react'
+import { ArrowUpDown, RefreshCw, TrendingUp, Clock, ExternalLink, Activity } from 'lucide-react'
 
 export default function Home() {
   const [spreads, setSpreads] = useState<FundingSpread[]>([])
@@ -23,6 +24,8 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<'symbol' | 'spread' | 'binance' | 'lighter'>('spread')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [lastUpdate, setLastUpdate] = useState<string>('')
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('')
+  const [modalOpen, setModalOpen] = useState(false)
 
   const fetchSpreads = async () => {
     setLoading(true)
@@ -185,7 +188,27 @@ export default function Home() {
     return 'outline'
   }
 
+  const getStabilityBadge = (spreadHourly: number) => {
+    // Simple heuristic: higher spread = potentially more stable opportunity
+    const absSpread = Math.abs(spreadHourly)
+    if (absSpread > 0.05) return { variant: 'success' as const, label: 'High', tooltip: 'Strong arbitrage opportunity' }
+    if (absSpread > 0.02) return { variant: 'secondary' as const, label: 'Med', tooltip: 'Moderate opportunity' }
+    if (absSpread > 0.01) return { variant: 'outline' as const, label: 'Low', tooltip: 'Minimal opportunity' }
+    return { variant: 'destructive' as const, label: 'None', tooltip: 'Not profitable' }
+  }
+
+  const handleRowClick = (symbol: string) => {
+    setSelectedSymbol(symbol)
+    setModalOpen(true)
+  }
+
   return (
+    <>
+      <SpreadHistoryModal
+        symbol={selectedSymbol}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto">
         <div className="mb-8">
@@ -282,6 +305,12 @@ export default function Home() {
                       </TableHead>
                       <TableHead>Daily APR</TableHead>
                       <TableHead>Annual APR</TableHead>
+                      <TableHead>
+                        <div className="flex items-center gap-1">
+                          <Activity className="h-4 w-4" />
+                          Stability
+                        </div>
+                      </TableHead>
                       <TableHead className="text-right">Mark Price</TableHead>
                       <TableHead className="text-right">
                         <Clock className="h-4 w-4 inline mr-1" />
@@ -290,8 +319,14 @@ export default function Home() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSpreads.map((spread) => (
-                      <TableRow key={spread.symbol} className="border-border hover:bg-accent/30 transition-colors">
+                    {filteredSpreads.map((spread) => {
+                      const stability = getStabilityBadge(spread.spreadHourly)
+                      return (
+                      <TableRow
+                        key={spread.symbol}
+                        className="border-border hover:bg-accent/30 transition-colors cursor-pointer"
+                        onClick={() => handleRowClick(spread.symbol)}
+                      >
                         <TableCell className="font-mono font-semibold text-foreground">
                           <div className="flex items-center gap-2">
                             <img
@@ -340,6 +375,11 @@ export default function Home() {
                             {formatSpread(spread.spreadAnnual)}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <Badge variant={stability.variant} title={stability.tooltip}>
+                            {stability.label}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-right font-mono text-sm text-muted-foreground">
                           {spread.binanceMarkPrice
                             ? `$${spread.binanceMarkPrice.toLocaleString(undefined, {
@@ -352,7 +392,8 @@ export default function Home() {
                           {formatCountdown(spread.binanceNextFunding)}
                         </TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
 
@@ -371,10 +412,11 @@ export default function Home() {
             All rates normalized to hourly • Data refreshes every 5 minutes
           </p>
           <p className="mt-1">
-            Spread = (Binance hourly - Lighter hourly) × 100% • Click rates to open on exchange
+            Spread = (Binance hourly - Lighter hourly) × 100% • Click row for detailed history
           </p>
         </div>
       </div>
     </div>
+    </>
   )
 }

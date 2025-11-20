@@ -10,7 +10,8 @@
       "Bash(git push:*)",
       "Bash(cat:*)",
       "Bash(nul)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": [],
     "ask": []

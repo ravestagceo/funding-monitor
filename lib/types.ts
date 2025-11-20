@@ -50,3 +50,30 @@ export interface FundingSpread {
   binanceMarkPrice?: number
   updatedAt: string
 }
+
+export interface SpreadHistoryPoint {
+  timestamp: string
+  spread_percent: number
+  binance_rate: number
+  lighter_rate: number
+}
+
+export interface SpreadStatistics {
+  avgSpread: number
+  medianSpread: number
+  minSpread: number
+  maxSpread: number
+  volatility: number
+  stabilityScore: number
+  profitableMinutes: number
+  totalMinutes: number
+}
+
+export interface SpreadHistoryResponse {
+  success: boolean
+  symbol: string
+  period: string
+  history: SpreadHistoryPoint[]
+  statistics: SpreadStatistics | null
+  timestamp: string
+}
