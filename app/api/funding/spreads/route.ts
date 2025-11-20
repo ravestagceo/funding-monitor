@@ -67,12 +67,19 @@ export async function GET() {
         const binanceRate = parseFloat(binanceItem.lastFundingRate || '0')
         const lighterRate = lighterItem.rate
 
-        // Calculate funding period for Binance (hours until next funding)
+        // Calculate actual funding period from last funding time to next funding time
+        // lastFundingRate is the rate that was applied at fundingTime
+        // nextFundingTime - fundingTime = funding period (4h or 8h)
+        const lastFundingTime = binanceItem.fundingTime || now
         const nextFunding = binanceItem.nextFundingTime || now
-        const hoursUntilNext = Math.max(1, Math.round((nextFunding - now) / (1000 * 60 * 60)))
+        const fundingPeriodMs = nextFunding - lastFundingTime
+        const fundingPeriodHours = fundingPeriodMs / (1000 * 60 * 60)
+
+        // Round to nearest common period (4 or 8 hours) to handle small variations
+        const binancePeriod = fundingPeriodHours <= 6 ? 4 : 8
 
         // Normalize to hourly rates
-        const binanceHourlyRate = binanceRate / hoursUntilNext
+        const binanceHourlyRate = binanceRate / binancePeriod
         const lighterHourlyRate = lighterRate / 8 // Lighter rate is for 8 hours
 
         // Calculate spreads
