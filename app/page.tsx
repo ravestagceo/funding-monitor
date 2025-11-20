@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { FundingSpread } from '@/lib/types'
-import { ArrowUpDown, RefreshCw, TrendingUp, Clock } from 'lucide-react'
+import { ArrowUpDown, RefreshCw, TrendingUp, Clock, ExternalLink } from 'lucide-react'
 
 export default function Home() {
   const [spreads, setSpreads] = useState<FundingSpread[]>([])
@@ -103,6 +103,19 @@ export default function Home() {
       setSortBy(column)
       setSortOrder('desc')
     }
+  }
+
+  const getBinanceUrl = (symbol: string) => {
+    // Convert symbol format: BTC -> BTCUSDT
+    let binanceSymbol = symbol
+    if (!symbol.includes('USDT')) {
+      binanceSymbol = `${symbol}USDT`
+    }
+    return `https://www.binance.com/en/futures/${binanceSymbol}`
+  }
+
+  const getLighterUrl = (symbol: string) => {
+    return `https://app.lighter.xyz/trade/${symbol}`
   }
 
   const formatRate = (rate: number) => {
@@ -246,10 +259,28 @@ export default function Home() {
                           {spread.symbol}
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {formatRate(spread.binanceHourlyRate)}
+                          <a
+                            href={getBinanceUrl(spread.symbol)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                            title="Open on Binance"
+                          >
+                            {formatRate(spread.binanceHourlyRate)}
+                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </a>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {formatRate(spread.lighterHourlyRate)}
+                          <a
+                            href={getLighterUrl(spread.symbol)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                            title="Open on Lighter"
+                          >
+                            {formatRate(spread.lighterHourlyRate)}
+                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </a>
                         </TableCell>
                         <TableCell className={`font-mono font-semibold ${getSpreadColor(spread.spreadHourly)}`}>
                           {formatSpread(spread.spreadHourly)}
@@ -311,7 +342,7 @@ export default function Home() {
             All rates normalized to hourly • Data refreshes every 5 minutes
           </p>
           <p className="mt-1">
-            Spread = (Binance hourly - Lighter hourly) × 100%
+            Spread = (Binance hourly - Lighter hourly) × 100% • Click rates to open on exchange
           </p>
         </div>
       </div>
