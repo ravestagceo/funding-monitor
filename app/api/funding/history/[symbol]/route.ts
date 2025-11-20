@@ -37,19 +37,29 @@ export async function GET(
     const hoursAgo = new Date()
     hoursAgo.setHours(hoursAgo.getHours() - hours)
 
-    // Fetch historical data
-    const { data, error } = await supabase
+    // Fetch historical spread data
+    const { data: spreadData, error: spreadError } = await supabase
       .from('funding_spreads')
       .select('created_at, spread_percent, binance_rate, lighter_rate')
       .eq('symbol', symbol)
       .gte('created_at', hoursAgo.toISOString())
       .order('created_at', { ascending: true })
 
-    if (error) {
-      throw error
+    // Fetch Binance funding data to get next_funding_time for period calculation
+    const binanceSymbol = symbol.includes('USDT') ? symbol : `${symbol}USDT`
+    const { data: binanceData, error: binanceError } = await supabase
+      .from('funding_rates')
+      .select('created_at, next_funding_time')
+      .eq('symbol', binanceSymbol)
+      .eq('exchange', 'binance')
+      .gte('created_at', hoursAgo.toISOString())
+      .order('created_at', { ascending: true })
+
+    if (spreadError) {
+      throw spreadError
     }
 
-    if (!data || data.length === 0) {
+    if (!spreadData || spreadData.length === 0) {
       return NextResponse.json({
         success: true,
         symbol,
@@ -59,13 +69,57 @@ export async function GET(
       })
     }
 
-    // Transform data
-    const history: SpreadHistoryPoint[] = data.map((row) => ({
-      timestamp: row.created_at,
-      spread_percent: row.spread_percent,
-      binance_rate: row.binance_rate,
-      lighter_rate: row.lighter_rate,
-    }))
+    // Create a map of timestamps to funding periods
+    const periodMap = new Map<string, number>()
+
+    if (binanceData && binanceData.length > 0) {
+      binanceData.forEach((row) => {
+        if (row.next_funding_time) {
+          const createdTime = new Date(row.created_at).getTime()
+          const nextFundingTime = row.next_funding_time
+          const periodHours = (nextFundingTime - createdTime) / (1000 * 60 * 60)
+
+          // Round to nearest hour to handle small variations (should be 4 or 8)
+          const roundedPeriod = Math.round(periodHours)
+          periodMap.set(row.created_at, roundedPeriod)
+        }
+      })
+    }
+
+    // Helper function to find closest period for a timestamp
+    const getPeriodForTimestamp = (timestamp: string): number => {
+      // Try exact match first
+      if (periodMap.has(timestamp)) {
+        return periodMap.get(timestamp)!
+      }
+
+      // If no exact match, find closest timestamp within 1 minute
+      const targetTime = new Date(timestamp).getTime()
+      let closestPeriod = 8 // Default to 8h if not found
+      let minDiff = Infinity
+
+      periodMap.forEach((period, ts) => {
+        const diff = Math.abs(new Date(ts).getTime() - targetTime)
+        if (diff < minDiff && diff < 60000) { // Within 1 minute
+          minDiff = diff
+          closestPeriod = period
+        }
+      })
+
+      return closestPeriod
+    }
+
+    // Transform data and normalize rates to hourly using actual periods
+    const history: SpreadHistoryPoint[] = spreadData.map((row) => {
+      const binancePeriod = getPeriodForTimestamp(row.created_at)
+
+      return {
+        timestamp: row.created_at,
+        spread_percent: row.spread_percent,
+        binance_rate: row.binance_rate / binancePeriod, // Normalize using actual period
+        lighter_rate: row.lighter_rate / 8, // Lighter is always 8h
+      }
+    })
 
     // Calculate statistics
     const spreads = history.map((h) => h.spread_percent)
