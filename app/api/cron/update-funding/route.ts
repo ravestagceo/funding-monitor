@@ -3,7 +3,6 @@ import { getServiceSupabase } from '@/lib/supabase'
 import type {
   BinanceFundingRate,
   LighterFundingRate,
-  HyperliquidMetaAndAssetCtxs,
   BybitTickersResponse,
   FundingRateDB,
   FundingSpreadDB,
@@ -113,11 +112,15 @@ export async function GET(request: NextRequest) {
     const hyperliquidRecords: FundingRateDB[] = []
 
     if (hyperliquidRes.status === 'fulfilled' && hyperliquidRes.value.ok) {
-      const hlData: HyperliquidMetaAndAssetCtxs = await hyperliquidRes.value.json()
+      // Hyperliquid returns [meta, assetCtxs] array
+      const hlData = await hyperliquidRes.value.json() as [
+        { universe: Array<{ name: string }> },
+        Array<{ funding: string; markPx?: string }>
+      ]
       const universe = hlData[0]?.universe || []
       const assetCtxs = hlData[1] || []
 
-      universe.forEach((asset: { name: string }, index: number) => {
+      universe.forEach((asset, index) => {
         const ctx = assetCtxs[index]
         if (!ctx || !ctx.funding) return
 
