@@ -124,22 +124,21 @@ export async function GET(request: NextRequest) {
         const ctx = assetCtxs[index]
         if (!ctx || !ctx.funding) return
 
-        const rate = parseFloat(ctx.funding)
+        // Hyperliquid API returns HOURLY rate directly
+        const hourlyRate = parseFloat(ctx.funding)
         const symbol = asset.name
-        // Hyperliquid shows 8h rate but pays hourly at 1/8
-        const hourlyRate = rate / 8
 
         hyperliquidRecords.push({
           symbol,
           exchange: 'hyperliquid',
-          funding_rate: rate,
-          funding_period_hours: 8,
+          funding_rate: hourlyRate,
+          funding_period_hours: 1, // Rate is already hourly
           mark_price: ctx.markPx ? parseFloat(ctx.markPx) : undefined,
         })
 
         hyperliquidMap.set(symbol, {
           symbol,
-          rate,
+          rate: hourlyRate,
           hourlyRate,
           markPrice: ctx.markPx ? parseFloat(ctx.markPx) : undefined,
         })
@@ -161,12 +160,17 @@ export async function GET(request: NextRequest) {
         .forEach((ticker) => {
           const rate = parseFloat(ticker.fundingRate)
           const symbol = ticker.symbol.replace('USDT', '').replace('1000', '')
+          // Use fundingIntervalHour from API (4 or 8), default to 8
+          const fundingPeriodHours = ticker.fundingIntervalHour
+            ? parseInt(ticker.fundingIntervalHour, 10)
+            : 8
+          const hourlyRate = rate / fundingPeriodHours
 
           bybitRecords.push({
             symbol: ticker.symbol,
             exchange: 'bybit',
             funding_rate: rate,
-            funding_period_hours: 8,
+            funding_period_hours: fundingPeriodHours,
             mark_price: parseFloat(ticker.markPrice),
             next_funding_time: parseInt(ticker.nextFundingTime),
           })
@@ -174,7 +178,7 @@ export async function GET(request: NextRequest) {
           bybitMap.set(symbol, {
             symbol,
             rate,
-            hourlyRate: rate / 8,
+            hourlyRate,
             markPrice: parseFloat(ticker.markPrice),
             nextFundingTime: parseInt(ticker.nextFundingTime),
           })

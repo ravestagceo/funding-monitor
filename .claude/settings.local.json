@@ -12,7 +12,10 @@
       "Bash(nul)",
       "Bash(git add:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(c:Codingfunding-monitorhl_data.json)",
+      "Bash(node -e:*)",
+      "Bash(hl_data.json)"
     ],
     "deny": [],
     "ask": []

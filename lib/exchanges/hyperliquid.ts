@@ -6,9 +6,10 @@ const HYPERLIQUID_API_URL = 'https://api.hyperliquid.xyz/info'
  * Fetch current funding rates from Hyperliquid
  *
  * Hyperliquid funding:
- * - Rate is displayed as 8-hour rate (like CEXs)
- * - But funding is PAID every hour at 1/8 of the displayed rate
- * - So the displayed rate IS the 8-hour rate
+ * - API returns the HOURLY funding rate directly
+ * - Funding is paid every hour
+ * - UI displays this hourly rate
+ * - No conversion needed - the rate IS hourly
  */
 export async function fetchHyperliquidFundingRates(): Promise<NormalizedFundingRate[]> {
   try {
@@ -37,18 +38,17 @@ export async function fetchHyperliquidFundingRates(): Promise<NormalizedFundingR
       const ctx = assetCtxs[index]
       if (!ctx || !ctx.funding) return
 
-      const fundingRate = parseFloat(ctx.funding)
+      // Hyperliquid API returns HOURLY rate directly
+      const hourlyRate = parseFloat(ctx.funding)
 
-      // Hyperliquid displays 8-hour rate, paid hourly at 1/8
-      // So the rate we get IS the 8-hour rate
-      const fundingPeriodHours = 8
-      const hourlyRate = fundingRate / fundingPeriodHours
+      // Store as 1-hour period since rate is already hourly
+      const fundingPeriodHours = 1
 
       rates.push({
         exchange: 'hyperliquid',
         symbol: normalizeSymbol(asset.name),
         originalSymbol: asset.name,
-        fundingRate,
+        fundingRate: hourlyRate, // Same as hourlyRate since period is 1h
         fundingPeriodHours,
         hourlyRate,
         markPrice: ctx.markPx ? parseFloat(ctx.markPx) : undefined,

@@ -6,9 +6,10 @@ const BYBIT_API_URL = 'https://api.bybit.com/v5/market/tickers'
  * Fetch current funding rates from Bybit
  *
  * Bybit funding:
- * - Standard 8-hour funding period (00:00, 08:00, 16:00 UTC)
- * - Some symbols may have different intervals (check fundingIntervalHour)
- * - Rate returned is for the funding period
+ * - Some pairs: 8-hour funding (00:00, 08:00, 16:00 UTC)
+ * - Some pairs: 4-hour funding (every 4 hours)
+ * - API returns fundingIntervalHour for each symbol
+ * - Rate returned is for the funding period (4h or 8h)
  */
 export async function fetchBybitFundingRates(): Promise<NormalizedFundingRate[]> {
   try {
@@ -42,8 +43,10 @@ export async function fetchBybitFundingRates(): Promise<NormalizedFundingRate[]>
       const fundingRate = parseFloat(ticker.fundingRate)
       const nextFundingTime = ticker.nextFundingTime ? parseInt(ticker.nextFundingTime, 10) : undefined
 
-      // Bybit is always 8 hours for most pairs
-      const fundingPeriodHours = 8
+      // Use fundingIntervalHour from API (4 or 8), default to 8
+      const fundingPeriodHours = ticker.fundingIntervalHour
+        ? parseInt(ticker.fundingIntervalHour, 10)
+        : 8
       const hourlyRate = fundingRate / fundingPeriodHours
 
       const normalizedSymbol = normalizeSymbol(ticker.symbol)

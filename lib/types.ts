@@ -74,6 +74,7 @@ export interface BybitTicker {
   volume24h: string
   fundingRate: string
   nextFundingTime: string
+  fundingIntervalHour?: string // 4 or 8 hours
   predictedDeliveryPrice?: string
   basisRate?: string
   deliveryFeeRate?: string
