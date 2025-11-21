@@ -211,14 +211,6 @@ export default function Home() {
       />
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-primary">
-            Funding Rate Monitor
-          </h1>
-          <p className="text-muted-foreground">
-            Real-time funding rate spread tracking between Binance and Lighter DEX
-          </p>
-        </div>
 
         <Card className="shadow-xl border-border bg-card/50 backdrop-blur-sm">
           <CardHeader>
