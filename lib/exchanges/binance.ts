@@ -1,6 +1,12 @@
 import type { BinanceFundingRate, NormalizedFundingRate } from '@/lib/types'
 
-const BINANCE_API_URL = 'https://fapi.binance.com/fapi/v1/premiumIndex'
+const BINANCE_PREMIUM_URL = 'https://fapi.binance.com/fapi/v1/premiumIndex'
+const BINANCE_FUNDING_INFO_URL = 'https://fapi.binance.com/fapi/v1/fundingInfo'
+
+interface BinanceFundingInfo {
+  symbol: string
+  fundingIntervalHours: number
+}
 
 /**
  * Fetch current funding rates from Binance
@@ -8,39 +14,51 @@ const BINANCE_API_URL = 'https://fapi.binance.com/fapi/v1/premiumIndex'
  * Binance funding:
  * - Most pairs: 8-hour funding (00:00, 08:00, 16:00 UTC)
  * - Some high-volume pairs: 4-hour funding
- * - We calculate the actual period from fundingTime and nextFundingTime
+ * - We fetch fundingInfo to get the actual interval per symbol
  */
 export async function fetchBinanceFundingRates(): Promise<NormalizedFundingRate[]> {
   try {
-    const response = await fetch(BINANCE_API_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    // Fetch both endpoints in parallel
+    const [premiumRes, fundingInfoRes] = await Promise.all([
+      fetch(BINANCE_PREMIUM_URL, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      fetch(BINANCE_FUNDING_INFO_URL, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ])
 
-    if (!response.ok) {
-      throw new Error(`Binance API error: ${response.status}`)
+    if (!premiumRes.ok) {
+      throw new Error(`Binance premiumIndex API error: ${premiumRes.status}`)
     }
 
-    const data: BinanceFundingRate[] = await response.json()
+    const data: BinanceFundingRate[] = await premiumRes.json()
+
+    // Build map of symbol -> fundingIntervalHours
+    // IMPORTANT: Only symbols in fundingInfo are actually tradeable on futures
+    const fundingIntervalMap = new Map<string, number>()
+    if (fundingInfoRes.ok) {
+      const fundingInfo: BinanceFundingInfo[] = await fundingInfoRes.json()
+      fundingInfo.forEach((info) => {
+        fundingIntervalMap.set(info.symbol, info.fundingIntervalHours)
+      })
+    }
+
     const now = Date.now()
     const rates: NormalizedFundingRate[] = []
 
     data.forEach((item) => {
       if (!item.lastFundingRate) return
 
+      // Skip symbols not in fundingInfo - they may be delisted or spot-only
+      // premiumIndex can return stale data for non-existent futures
+      const fundingPeriodHours = fundingIntervalMap.get(item.symbol)
+      if (!fundingPeriodHours) return
+
       const fundingRate = parseFloat(item.lastFundingRate)
-
-      // Calculate actual funding period from timestamps
-      const fundingPeriodMs = item.nextFundingTime && item.fundingTime
-        ? item.nextFundingTime - item.fundingTime
-        : 8 * 60 * 60 * 1000 // Default 8h
-
-      const fundingPeriodHours = fundingPeriodMs / (1000 * 60 * 60)
-      // Round to nearest common period (4 or 8)
-      const normalizedPeriod = fundingPeriodHours <= 6 ? 4 : 8
-      const hourlyRate = fundingRate / normalizedPeriod
+      const hourlyRate = fundingRate / fundingPeriodHours
 
       const normalizedSymbol = normalizeSymbol(item.symbol)
       if (!normalizedSymbol) return
@@ -50,7 +68,7 @@ export async function fetchBinanceFundingRates(): Promise<NormalizedFundingRate[
         symbol: normalizedSymbol,
         originalSymbol: item.symbol,
         fundingRate,
-        fundingPeriodHours: normalizedPeriod,
+        fundingPeriodHours,
         hourlyRate,
         markPrice: item.markPrice ? parseFloat(item.markPrice) : undefined,
         nextFundingTime: item.nextFundingTime,

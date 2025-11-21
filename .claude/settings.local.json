@@ -11,7 +11,8 @@
       "Bash(cat:*)",
       "Bash(nul)",
       "Bash(git add:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(jq:*)"
     ],
     "deny": [],
     "ask": []
