@@ -8,14 +8,22 @@ interface SpreadMap {
   [symbol: string]: FundingSpread
 }
 
+interface BinanceFundingInfo {
+  symbol: string
+  fundingIntervalHours: number
+}
+
 export async function GET() {
   try {
-    // Fetch from both exchanges in parallel
-    const [binanceRes, lighterRes] = await Promise.all([
+    // Fetch from all endpoints in parallel
+    const [binanceRes, lighterRes, fundingInfoRes] = await Promise.all([
       fetch('https://fapi.binance.com/fapi/v1/premiumIndex', {
         next: { revalidate: 0 },
       }),
       fetch('https://mainnet.zklighter.elliot.ai/api/v1/funding-rates', {
+        next: { revalidate: 0 },
+      }),
+      fetch('https://fapi.binance.com/fapi/v1/fundingInfo', {
         next: { revalidate: 0 },
       }),
     ])
@@ -32,11 +40,23 @@ export async function GET() {
     const lighterResult = await lighterRes.json()
     const lighterData: LighterFundingRate[] = lighterResult.funding_rates || []
 
+    // Build map of symbol -> fundingIntervalHours
+    const fundingIntervalMap = new Map<string, number>()
+    if (fundingInfoRes.ok) {
+      const fundingInfo: BinanceFundingInfo[] = await fundingInfoRes.json()
+      fundingInfo.forEach((info) => {
+        fundingIntervalMap.set(info.symbol, info.fundingIntervalHours)
+      })
+    }
+
     // Create maps for quick lookup
     const binanceMap = new Map<string, BinanceFundingRate>()
     binanceData.forEach((item) => {
       if (item.lastFundingRate !== undefined && item.lastFundingRate !== null) {
-        binanceMap.set(item.symbol, item)
+        // Only include symbols that exist in fundingInfo
+        if (fundingIntervalMap.has(item.symbol)) {
+          binanceMap.set(item.symbol, item)
+        }
       }
     })
 
@@ -67,16 +87,8 @@ export async function GET() {
         const binanceRate = parseFloat(binanceItem.lastFundingRate || '0')
         const lighterRate = lighterItem.rate
 
-        // Calculate actual funding period from last funding time to next funding time
-        // lastFundingRate is the rate that was applied at fundingTime
-        // nextFundingTime - fundingTime = funding period (4h or 8h)
-        const lastFundingTime = binanceItem.fundingTime || now
-        const nextFunding = binanceItem.nextFundingTime || now
-        const fundingPeriodMs = nextFunding - lastFundingTime
-        const fundingPeriodHours = fundingPeriodMs / (1000 * 60 * 60)
-
-        // Round to nearest common period (4 or 8 hours) to handle small variations
-        const binancePeriod = fundingPeriodHours <= 6 ? 4 : 8
+        // Get actual funding period from fundingInfo
+        const binancePeriod = fundingIntervalMap.get(binanceSymbol) || 8
 
         // Normalize to hourly rates
         const binanceHourlyRate = binanceRate / binancePeriod
