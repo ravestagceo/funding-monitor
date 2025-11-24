@@ -12,7 +12,7 @@ const supabase = createClient(
 
 export async function GET(
   request: Request,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
     const { searchParams } = new URL(request.url)
@@ -20,7 +20,7 @@ export async function GET(
     const exchange1 = (searchParams.get('exchange1') || 'binance') as ExchangeId
     const exchange2 = (searchParams.get('exchange2') || 'hyperliquid') as ExchangeId
 
-    const symbol = params.symbol
+    const { symbol } = await params
 
     // Calculate time range
     const now = new Date()
