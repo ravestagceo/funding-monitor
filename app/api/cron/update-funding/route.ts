@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const supabase = getServiceSupabase()
 
     // Fetch from all exchanges in parallel
-    const [binanceRes, lighterRes, hyperliquidRes, bybitRes] = await Promise.allSettled([
+    const [binanceRes, lighterRes, hyperliquidRes, bybitRes, fundingInfoRes] = await Promise.allSettled([
       fetch('https://fapi.binance.com/fapi/v1/premiumIndex', {
         next: { revalidate: 0 },
       }),
@@ -46,7 +46,23 @@ export async function GET(request: NextRequest) {
       fetch('https://api.bybit.com/v5/market/tickers?category=linear', {
         next: { revalidate: 0 },
       }),
+      fetch('https://fapi.binance.com/fapi/v1/fundingInfo', {
+        next: { revalidate: 0 },
+      }),
     ])
+
+    // Build map of symbol -> fundingIntervalHours from fundingInfo
+    const fundingIntervalMap = new Map<string, number>()
+    if (fundingInfoRes.status === 'fulfilled' && fundingInfoRes.value.ok) {
+      interface BinanceFundingInfo {
+        symbol: string
+        fundingIntervalHours: number
+      }
+      const fundingInfo: BinanceFundingInfo[] = await fundingInfoRes.value.json()
+      fundingInfo.forEach((info) => {
+        fundingIntervalMap.set(info.symbol, info.fundingIntervalHours)
+      })
+    }
 
     // Process Binance data
     const binanceMap = new Map<string, NormalizedRate>()
@@ -56,15 +72,17 @@ export async function GET(request: NextRequest) {
       const binanceData: BinanceFundingRate[] = await binanceRes.value.json()
       binanceData
         .filter((item) => item.lastFundingRate !== undefined && item.lastFundingRate !== null)
+        .filter((item) => fundingIntervalMap.has(item.symbol)) // Only symbols in fundingInfo
         .forEach((item) => {
           const rate = parseFloat(item.lastFundingRate || '0')
           const symbol = item.symbol.replace('USDT', '').replace('1000', '')
+          const fundingPeriodHours = fundingIntervalMap.get(item.symbol) || 8
 
           binanceRecords.push({
             symbol: item.symbol,
             exchange: 'binance',
             funding_rate: rate,
-            funding_period_hours: 8,
+            funding_period_hours: fundingPeriodHours,
             mark_price: parseFloat(item.markPrice),
             next_funding_time: item.nextFundingTime,
           })
@@ -72,7 +90,7 @@ export async function GET(request: NextRequest) {
           binanceMap.set(symbol, {
             symbol,
             rate,
-            hourlyRate: rate / 8,
+            hourlyRate: rate / fundingPeriodHours,
             markPrice: parseFloat(item.markPrice),
             nextFundingTime: item.nextFundingTime,
           })
@@ -250,6 +268,25 @@ export async function GET(request: NextRequest) {
       })
     })
 
+    // Insert all funding rates into funding_rates table
+    const allFundingRates = [
+      ...binanceRecords,
+      ...lighterRecords,
+      ...hyperliquidRecords,
+      ...bybitRecords,
+    ]
+
+    if (allFundingRates.length > 0) {
+      const { error: ratesError } = await supabase
+        .from('funding_rates')
+        .insert(allFundingRates)
+
+      if (ratesError) {
+        console.error('Error inserting funding rates:', ratesError)
+      }
+    }
+
+    // Insert spreads
     if (spreadRecords.length > 0) {
       const { error: spreadError } = await supabase
         .from('funding_spreads')
