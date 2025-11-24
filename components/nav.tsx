@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { href: '/', label: 'Simple View', description: 'Binance vs Lighter' },
   { href: '/matrix', label: 'Matrix View', description: 'All Exchanges' },
+  { href: '/guide', label: 'Guide', description: 'User Guide' },
 ]
 
 export function Nav() {

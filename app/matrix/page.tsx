@@ -15,6 +15,7 @@ import {
 import { ArrowUpDown, RefreshCw, TrendingUp, ExternalLink, ArrowRight } from 'lucide-react'
 import type { MultiExchangeSpread, ExchangeId } from '@/lib/types'
 import { EXCHANGE_CONFIG } from '@/lib/types'
+import { SpreadHistoryModal } from '@/components/spread-history-modal'
 
 const EXCHANGES: ExchangeId[] = ['binance', 'hyperliquid', 'bybit', 'lighter']
 
@@ -27,6 +28,9 @@ export default function MatrixPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [stats, setStats] = useState<Record<string, number>>({})
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [availableExchanges, setAvailableExchanges] = useState<ExchangeId[]>([])
 
   const fetchSpreads = async () => {
     setLoading(true)
@@ -238,7 +242,12 @@ export default function MatrixPage() {
                     {filteredSpreads.map((spread) => (
                       <TableRow
                         key={spread.symbol}
-                        className="border-border hover:bg-accent/30 transition-colors"
+                        className="border-border hover:bg-accent/30 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedSymbol(spread.symbol)
+                          setAvailableExchanges(Object.keys(spread.exchanges) as ExchangeId[])
+                          setModalOpen(true)
+                        }}
                       >
                         <TableCell className="sticky left-0 bg-card font-mono font-semibold text-foreground">
                           {spread.symbol}
@@ -255,6 +264,7 @@ export default function MatrixPage() {
                                   href={getExchangeUrl(exchange, spread.symbol)}
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
                                   className={`inline-flex items-center gap-1 font-mono text-sm hover:underline ${getRateColor(
                                     rate.hourlyRate
                                   )} ${isLong ? 'bg-green-500/20 px-2 py-0.5 rounded' : ''} ${
@@ -314,6 +324,13 @@ export default function MatrixPage() {
             <span className="text-red-400 ml-2">Red highlight</span> = Short position
           </p>
         </div>
+
+        <SpreadHistoryModal
+          symbol={selectedSymbol}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          availableExchanges={availableExchanges}
+        />
       </div>
     </div>
   )

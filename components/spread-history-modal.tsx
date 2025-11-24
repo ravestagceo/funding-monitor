@@ -8,21 +8,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
-import { RefreshCw, TrendingUp, TrendingDown, Activity } from 'lucide-react'
-import type { SpreadHistoryResponse } from '@/lib/types'
+import { RefreshCw, TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react'
+import type { SpreadHistoryResponse, ExchangeId } from '@/lib/types'
+import { PriceSpreadTab } from './price-spread-tab'
 
 interface SpreadHistoryModalProps {
   symbol: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  availableExchanges?: ExchangeId[]  // Optional: list of exchanges available for this symbol
 }
 
-export function SpreadHistoryModal({ symbol, open, onOpenChange }: SpreadHistoryModalProps) {
+export function SpreadHistoryModal({ symbol, open, onOpenChange, availableExchanges = ['binance', 'lighter'] }: SpreadHistoryModalProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<SpreadHistoryResponse | null>(null)
   const [hours, setHours] = useState(6)
+  const [activeTab, setActiveTab] = useState('funding')
+  const [selectedExchange1, setSelectedExchange1] = useState<ExchangeId>('binance')
+  const [selectedExchange2, setSelectedExchange2] = useState<ExchangeId>('hyperliquid')
 
   useEffect(() => {
     if (open && symbol) {
@@ -82,13 +88,25 @@ export function SpreadHistoryModal({ symbol, open, onOpenChange }: SpreadHistory
             {symbol} Spread History
           </DialogTitle>
           <DialogDescription>
-            Real-time funding rate spread analysis and statistics
+            Funding rate and price spread analysis across exchanges
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Time Period Selector */}
-          <div className="flex gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="funding" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Funding Spread
+            </TabsTrigger>
+            <TabsTrigger value="price" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Price Spread
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="funding" className="space-y-6">
+            {/* Time Period Selector */}
+            <div className="flex gap-2">
             {[1, 6, 12, 24].map((h) => (
               <button
                 key={h}
@@ -257,7 +275,64 @@ export function SpreadHistoryModal({ symbol, open, onOpenChange }: SpreadHistory
               No historical data available for this symbol
             </div>
           )}
-        </div>
+          </TabsContent>
+
+          <TabsContent value="price" className="space-y-6">
+            {/* Time Period Selector */}
+            <div className="flex gap-2 items-center">
+              {[1, 6, 12, 24].map((h) => (
+                <button
+                  key={h}
+                  onClick={() => setHours(h)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    hours === h
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }`}
+                >
+                  {h}h
+                </button>
+              ))}
+            </div>
+
+            {/* Exchange Selector */}
+            {availableExchanges.length > 2 && (
+              <div className="flex gap-4 items-center bg-card border border-border rounded-lg p-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground">Exchange 1:</label>
+                  <select
+                    value={selectedExchange1}
+                    onChange={(e) => setSelectedExchange1(e.target.value as ExchangeId)}
+                    className="px-3 py-2 rounded-md bg-background border border-border text-foreground"
+                  >
+                    {availableExchanges.map(ex => (
+                      <option key={ex} value={ex}>{ex.charAt(0).toUpperCase() + ex.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground">Exchange 2:</label>
+                  <select
+                    value={selectedExchange2}
+                    onChange={(e) => setSelectedExchange2(e.target.value as ExchangeId)}
+                    className="px-3 py-2 rounded-md bg-background border border-border text-foreground"
+                  >
+                    {availableExchanges.filter(ex => ex !== selectedExchange1).map(ex => (
+                      <option key={ex} value={ex}>{ex.charAt(0).toUpperCase() + ex.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <PriceSpreadTab
+              symbol={symbol}
+              exchange1={selectedExchange1}
+              exchange2={selectedExchange2}
+              hours={hours}
+            />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   )

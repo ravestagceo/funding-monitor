@@ -203,3 +203,35 @@ export interface SpreadHistoryResponse {
   statistics: SpreadStatistics | null
   timestamp: string
 }
+
+// ============ Price Spread Types ============
+
+export interface PriceSpreadPoint {
+  timestamp: string
+  exchange1_price: number
+  exchange2_price: number
+  spread_absolute: number  // exchange1_price - exchange2_price (USD)
+  spread_percent: number   // (exchange1 - exchange2) / exchange2 * 100
+}
+
+export interface PriceSpreadStatistics {
+  avgSpreadAbsolute: number
+  avgSpreadPercent: number
+  minSpreadAbsolute: number
+  maxSpreadAbsolute: number
+  minSpreadPercent: number
+  maxSpreadPercent: number
+  volatility: number
+  totalPoints: number
+}
+
+export interface PriceSpreadHistoryResponse {
+  success: boolean
+  symbol: string
+  exchange1: ExchangeId
+  exchange2: ExchangeId
+  period: string
+  history: PriceSpreadPoint[]
+  statistics: PriceSpreadStatistics | null
+  timestamp: string
+}
