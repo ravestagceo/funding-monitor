@@ -125,7 +125,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
           <div className="bg-card border border-border rounded-lg p-4">
             <h3 className="text-sm font-semibold mb-4 text-card-foreground">Mark Price Comparison</h3>
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={chartData}>
+              <LineChart data={chartData} key={`${exchange1}-${exchange2}`}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
                   dataKey="time"
@@ -145,10 +145,42 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                     borderRadius: '6px',
                     color: 'hsl(var(--popover-foreground))',
                   }}
-                  formatter={(value: number, name: string) => [
-                    formatPrice(value),
-                    name === 'exchange1' ? ex1Config.name : ex2Config.name,
-                  ]}
+                  content={({ active, payload }) => {
+                    if (!active || !payload || payload.length === 0) return null
+
+                    const ex1Price = payload.find(p => p.dataKey === 'exchange1')?.value as number
+                    const ex2Price = payload.find(p => p.dataKey === 'exchange2')?.value as number
+
+                    if (!ex1Price || !ex2Price) return null
+
+                    const spreadAbsolute = ex1Price - ex2Price
+                    const spreadPercent = (spreadAbsolute / ex2Price) * 100
+
+                    return (
+                      <div className="bg-popover border border-border rounded-md p-3">
+                        <div className="text-xs text-muted-foreground mb-2">{payload[0].payload.time}</div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded" style={{ backgroundColor: ex1Config.color }} />
+                            <span className="text-sm">{ex1Config.name}:</span>
+                            <span className="text-sm font-semibold">{formatPrice(ex1Price)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded" style={{ backgroundColor: ex2Config.color }} />
+                            <span className="text-sm">{ex2Config.name}:</span>
+                            <span className="text-sm font-semibold">{formatPrice(ex2Price)}</span>
+                          </div>
+                          <div className="border-t border-border mt-2 pt-2">
+                            <div className="text-xs text-muted-foreground">Spread:</div>
+                            <div className="flex gap-3 text-sm font-semibold">
+                              <span>{spreadPercent >= 0 ? '+' : ''}{spreadPercent.toFixed(4)}%</span>
+                              <span>${spreadAbsolute.toFixed(4)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }}
                 />
                 <Line
                   type="monotone"
