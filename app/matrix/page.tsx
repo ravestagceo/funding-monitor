@@ -31,6 +31,8 @@ export default function MatrixPage() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('')
   const [modalOpen, setModalOpen] = useState(false)
   const [availableExchanges, setAvailableExchanges] = useState<ExchangeId[]>([])
+  const [selectedExchange1, setSelectedExchange1] = useState<ExchangeId>('binance')
+  const [selectedExchange2, setSelectedExchange2] = useState<ExchangeId>('hyperliquid')
 
   const fetchSpreads = async () => {
     setLoading(true)
@@ -246,6 +248,8 @@ export default function MatrixPage() {
                         onClick={() => {
                           setSelectedSymbol(spread.symbol)
                           setAvailableExchanges(Object.keys(spread.exchanges) as ExchangeId[])
+                          setSelectedExchange1(spread.bestSpread.longExchange)
+                          setSelectedExchange2(spread.bestSpread.shortExchange)
                           setModalOpen(true)
                         }}
                       >
@@ -330,6 +334,8 @@ export default function MatrixPage() {
           open={modalOpen}
           onOpenChange={setModalOpen}
           availableExchanges={availableExchanges}
+          initialExchange1={selectedExchange1}
+          initialExchange2={selectedExchange2}
         />
       </div>
     </div>

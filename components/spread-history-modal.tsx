@@ -20,21 +20,37 @@ interface SpreadHistoryModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   availableExchanges?: ExchangeId[]  // Optional: list of exchanges available for this symbol
+  initialExchange1?: ExchangeId  // Optional: initial value for exchange 1
+  initialExchange2?: ExchangeId  // Optional: initial value for exchange 2
 }
 
-export function SpreadHistoryModal({ symbol, open, onOpenChange, availableExchanges = ['binance', 'lighter'] }: SpreadHistoryModalProps) {
+export function SpreadHistoryModal({
+  symbol,
+  open,
+  onOpenChange,
+  availableExchanges = ['binance', 'lighter'],
+  initialExchange1 = 'binance',
+  initialExchange2 = 'hyperliquid'
+}: SpreadHistoryModalProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<SpreadHistoryResponse | null>(null)
   const [hours, setHours] = useState(6)
   const [activeTab, setActiveTab] = useState('funding')
-  const [selectedExchange1, setSelectedExchange1] = useState<ExchangeId>('binance')
-  const [selectedExchange2, setSelectedExchange2] = useState<ExchangeId>('hyperliquid')
+  const [selectedExchange1, setSelectedExchange1] = useState<ExchangeId>(initialExchange1)
+  const [selectedExchange2, setSelectedExchange2] = useState<ExchangeId>(initialExchange2)
 
   useEffect(() => {
     if (open && symbol) {
       fetchHistory()
     }
   }, [open, symbol, hours])
+
+  useEffect(() => {
+    if (open) {
+      setSelectedExchange1(initialExchange1)
+      setSelectedExchange2(initialExchange2)
+    }
+  }, [open, initialExchange1, initialExchange2])
 
   const fetchHistory = async () => {
     setLoading(true)
