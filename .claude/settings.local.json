@@ -15,7 +15,8 @@
       "Bash(jq:*)",
       "Bash(c:Codingfunding-monitorhl_data.json)",
       "Bash(node -e:*)",
-      "Bash(hl_data.json)"
+      "Bash(hl_data.json)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

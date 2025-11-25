@@ -47,10 +47,19 @@ export function SpreadHistoryModal({
 
   useEffect(() => {
     if (open) {
-      setSelectedExchange1(initialExchange1)
-      setSelectedExchange2(initialExchange2)
+      // Validate that initial exchanges are in availableExchanges
+      const validExchange1 = availableExchanges.includes(initialExchange1)
+        ? initialExchange1
+        : availableExchanges[0]
+
+      const validExchange2 = availableExchanges.includes(initialExchange2) && initialExchange2 !== validExchange1
+        ? initialExchange2
+        : availableExchanges.find(ex => ex !== validExchange1) || availableExchanges[1]
+
+      setSelectedExchange1(validExchange1)
+      setSelectedExchange2(validExchange2)
     }
-  }, [open, initialExchange1, initialExchange2])
+  }, [open, initialExchange1, initialExchange2, availableExchanges])
 
   const fetchHistory = async () => {
     setLoading(true)
@@ -312,7 +321,7 @@ export function SpreadHistoryModal({
             </div>
 
             {/* Exchange Selector */}
-            {availableExchanges.length > 2 && (
+            {availableExchanges.length >= 2 && (
               <div className="flex gap-4 items-center bg-card border border-border rounded-lg p-4">
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-muted-foreground">Exchange 1:</label>

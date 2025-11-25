@@ -8,10 +8,10 @@ export const EXCHANGE_CONFIG: Record<ExchangeId, {
   fundingPeriodHours: number // Default period, can vary per asset
   type: 'cex' | 'dex'
 }> = {
-  binance: { name: 'Binance', color: '#f3ba2f', fundingPeriodHours: 8, type: 'cex' },
-  lighter: { name: 'Lighter', color: '#10b981', fundingPeriodHours: 8, type: 'dex' },
-  hyperliquid: { name: 'Hyperliquid', color: '#84cc16', fundingPeriodHours: 1, type: 'dex' }, // Pays hourly but shows 8h rate
-  bybit: { name: 'Bybit', color: '#f7a600', fundingPeriodHours: 8, type: 'cex' },
+  binance: { name: 'Binance', color: '#f3ba2f', fundingPeriodHours: 8, type: 'cex' }, // Yellow
+  lighter: { name: 'Lighter', color: '#10b981', fundingPeriodHours: 8, type: 'dex' }, // Emerald
+  hyperliquid: { name: 'Hyperliquid', color: '#84cc16', fundingPeriodHours: 1, type: 'dex' }, // Lime
+  bybit: { name: 'Bybit', color: '#3b82f6', fundingPeriodHours: 8, type: 'cex' }, // Blue - changed from orange to be distinct
 }
 
 // ============ API Response Types ============
