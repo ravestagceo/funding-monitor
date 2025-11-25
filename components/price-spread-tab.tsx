@@ -64,6 +64,21 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
   const ex1Config = EXCHANGE_CONFIG[exchange1]
   const ex2Config = EXCHANGE_CONFIG[exchange2]
 
+  // Calculate dynamic Y-axis domain for better zoom on small spreads
+  const calculateYDomain = () => {
+    if (!chartData.length) return undefined
+
+    const allPrices = chartData.flatMap(d => [d.exchange1, d.exchange2])
+    const minPrice = Math.min(...allPrices)
+    const maxPrice = Math.max(...allPrices)
+    const range = maxPrice - minPrice
+
+    // Add 10% padding on each side, or use a minimum range of 0.5% of the price
+    const padding = Math.max(range * 0.1, minPrice * 0.005)
+
+    return [minPrice - padding, maxPrice + padding]
+  }
+
   return (
     <div className="space-y-6">
       {loading && !data ? (
@@ -120,7 +135,8 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                 <YAxis
                   stroke="hsl(var(--muted-foreground))"
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  tickFormatter={(value) => `$${value.toFixed(4)}`}
+                  domain={calculateYDomain()}
                 />
                 <Tooltip
                   contentStyle={{
