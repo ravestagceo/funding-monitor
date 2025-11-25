@@ -54,10 +54,11 @@ export async function GET() {
         .filter((item) => fundingIntervalMap.has(item.symbol))
         .forEach((item) => {
           const rate = parseFloat(item.lastFundingRate || '0')
+          const normalizedSymbol = item.symbol.replace('USDT', '').replace('USDC', '').replace('1000', '')
           const fundingPeriodHours = fundingIntervalMap.get(item.symbol) || 8
 
           binanceRecords.push({
-            symbol: item.symbol,
+            symbol: normalizedSymbol,
             exchange: 'binance',
             funding_rate: rate,
             funding_period_hours: fundingPeriodHours,
@@ -127,13 +128,13 @@ export async function GET() {
         .filter((t) => t.symbol.endsWith('USDT') && t.fundingRate)
         .forEach((ticker) => {
           const rate = parseFloat(ticker.fundingRate)
-          const symbol = ticker.symbol.replace('USDT', '')
+          const normalizedSymbol = ticker.symbol.replace('USDT', '').replace('USDC', '').replace('1000', '')
           const fundingPeriodHours = ticker.fundingIntervalHour
             ? parseInt(ticker.fundingIntervalHour, 10)
             : 8
 
           bybitRecords.push({
-            symbol,
+            symbol: normalizedSymbol,
             exchange: 'bybit',
             funding_rate: rate,
             funding_period_hours: fundingPeriodHours,

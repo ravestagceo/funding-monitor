@@ -75,11 +75,11 @@ export async function GET(request: NextRequest) {
         .filter((item) => fundingIntervalMap.has(item.symbol)) // Only symbols in fundingInfo
         .forEach((item) => {
           const rate = parseFloat(item.lastFundingRate || '0')
-          const symbol = item.symbol.replace('USDT', '').replace('1000', '')
+          const normalizedSymbol = item.symbol.replace('USDT', '').replace('USDC', '').replace('1000', '')
           const fundingPeriodHours = fundingIntervalMap.get(item.symbol) || 8
 
           binanceRecords.push({
-            symbol: item.symbol,
+            symbol: normalizedSymbol,
             exchange: 'binance',
             funding_rate: rate,
             funding_period_hours: fundingPeriodHours,
@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
             next_funding_time: item.nextFundingTime,
           })
 
-          binanceMap.set(symbol, {
-            symbol,
+          binanceMap.set(normalizedSymbol, {
+            symbol: normalizedSymbol,
             rate,
             hourlyRate: rate / fundingPeriodHours,
             markPrice: parseFloat(item.markPrice),
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
         .filter((t) => t.symbol.endsWith('USDT') && t.fundingRate)
         .forEach((ticker) => {
           const rate = parseFloat(ticker.fundingRate)
-          const symbol = ticker.symbol.replace('USDT', '').replace('1000', '')
+          const normalizedSymbol = ticker.symbol.replace('USDT', '').replace('USDC', '').replace('1000', '')
           // Use fundingIntervalHour from API (4 or 8), default to 8
           const fundingPeriodHours = ticker.fundingIntervalHour
             ? parseInt(ticker.fundingIntervalHour, 10)
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
           const hourlyRate = rate / fundingPeriodHours
 
           bybitRecords.push({
-            symbol: ticker.symbol,
+            symbol: normalizedSymbol,
             exchange: 'bybit',
             funding_rate: rate,
             funding_period_hours: fundingPeriodHours,
@@ -193,8 +193,8 @@ export async function GET(request: NextRequest) {
             next_funding_time: parseInt(ticker.nextFundingTime),
           })
 
-          bybitMap.set(symbol, {
-            symbol,
+          bybitMap.set(normalizedSymbol, {
+            symbol: normalizedSymbol,
             rate,
             hourlyRate,
             markPrice: parseFloat(ticker.markPrice),
