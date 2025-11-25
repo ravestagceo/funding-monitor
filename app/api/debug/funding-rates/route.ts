@@ -11,35 +11,35 @@ const supabase = createClient(
 
 export async function GET() {
   try {
-    // Get count of records per exchange
-    const { data: allData, error } = await supabase
-      .from('funding_rates')
-      .select('exchange, symbol, created_at, mark_price')
-      .order('created_at', { ascending: false })
-      .limit(100)
-
-    if (error) {
-      throw error
-    }
-
-    // Group by exchange
+    // Get counts per exchange (more efficient than fetching all)
+    const exchanges = ['binance', 'lighter', 'hyperliquid', 'bybit']
     const byExchange: Record<string, number> = {}
     const sampleData: Record<string, any[]> = {}
 
-    allData?.forEach(record => {
-      byExchange[record.exchange] = (byExchange[record.exchange] || 0) + 1
-      if (!sampleData[record.exchange]) {
-        sampleData[record.exchange] = []
-      }
-      if (sampleData[record.exchange].length < 3) {
-        sampleData[record.exchange].push({
-          symbol: record.symbol,
-          created_at: record.created_at,
-          has_mark_price: !!record.mark_price,
-          mark_price: record.mark_price
-        })
-      }
-    })
+    for (const exchange of exchanges) {
+      // Count
+      const { count } = await supabase
+        .from('funding_rates')
+        .select('*', { count: 'exact', head: true })
+        .eq('exchange', exchange)
+
+      byExchange[exchange] = count || 0
+
+      // Get samples
+      const { data: samples } = await supabase
+        .from('funding_rates')
+        .select('symbol, created_at, mark_price')
+        .eq('exchange', exchange)
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      sampleData[exchange] = samples?.map(s => ({
+        symbol: s.symbol,
+        created_at: s.created_at,
+        has_mark_price: !!s.mark_price,
+        mark_price: s.mark_price
+      })) || []
+    }
 
     // Get oldest and newest records
     const { data: oldest } = await supabase
@@ -54,10 +54,12 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(1)
 
+    const totalRecords = Object.values(byExchange).reduce((sum, count) => sum + count, 0)
+
     return NextResponse.json({
       success: true,
       stats: {
-        totalRecords: allData?.length || 0,
+        totalRecords,
         byExchange,
         oldestRecord: oldest?.[0],
         newestRecord: newest?.[0],
