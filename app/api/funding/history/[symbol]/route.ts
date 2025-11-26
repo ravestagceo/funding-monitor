@@ -71,7 +71,7 @@ export async function GET(
 
     // Filter out rows where either exchange has no data
     const validData = spreadData.filter(
-      (row) => row[ex1Column] != null && row[ex2Column] != null
+      (row) => (row as any)[ex1Column] != null && (row as any)[ex2Column] != null
     )
 
     if (validData.length === 0) {
@@ -92,12 +92,12 @@ export async function GET(
 
     // Transform data and normalize rates to hourly
     const history: SpreadHistoryPoint[] = validData.map((row) => {
-      const ex1Rate = (row[ex1Column] as number) / ex1Period
-      const ex2Rate = (row[ex2Column] as number) / ex2Period
+      const ex1Rate = ((row as any)[ex1Column] as number) / ex1Period
+      const ex2Rate = ((row as any)[ex2Column] as number) / ex2Period
       const spreadPercent = Math.abs(ex1Rate - ex2Rate) * 100
 
       return {
-        timestamp: row.created_at,
+        timestamp: (row as any).created_at,
         spread_percent: spreadPercent,
         exchange1_rate: ex1Rate,
         exchange2_rate: ex2Rate,
