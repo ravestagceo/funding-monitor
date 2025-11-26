@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import { RefreshCw, TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react'
 import type { SpreadHistoryResponse, ExchangeId } from '@/lib/types'
+import { EXCHANGE_CONFIG } from '@/lib/types'
 import { PriceSpreadTab } from './price-spread-tab'
 
 interface SpreadHistoryModalProps {
@@ -43,7 +44,7 @@ export function SpreadHistoryModal({
     if (open && symbol) {
       fetchHistory()
     }
-  }, [open, symbol, hours])
+  }, [open, symbol, hours, selectedExchange1, selectedExchange2])
 
   useEffect(() => {
     if (open) {
@@ -64,7 +65,9 @@ export function SpreadHistoryModal({
   const fetchHistory = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/funding/history/${symbol}?hours=${hours}`)
+      const response = await fetch(
+        `/api/funding/history/${symbol}?hours=${hours}&exchange1=${selectedExchange1}&exchange2=${selectedExchange2}`
+      )
       const result = await response.json()
       if (result.success) {
         setData(result)
@@ -100,9 +103,13 @@ export function SpreadHistoryModal({
   const chartData = data?.history.map((point) => ({
     time: formatTime(point.timestamp),
     spread: point.spread_percent,
-    binance: point.binance_rate * 100,
-    lighter: point.lighter_rate * 100,
+    exchange1: point.exchange1_rate * 100,
+    exchange2: point.exchange2_rate * 100,
   })) || []
+
+  // Get exchange configs for colors and names
+  const ex1Config = EXCHANGE_CONFIG[selectedExchange1]
+  const ex2Config = EXCHANGE_CONFIG[selectedExchange2]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,6 +161,36 @@ export function SpreadHistoryModal({
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
+
+          {/* Exchange Selector */}
+          {availableExchanges.length >= 2 && (
+            <div className="flex gap-4 items-center bg-card border border-border rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">Exchange 1:</label>
+                <select
+                  value={selectedExchange1}
+                  onChange={(e) => setSelectedExchange1(e.target.value as ExchangeId)}
+                  className="px-3 py-2 rounded-md bg-background border border-border text-foreground"
+                >
+                  {availableExchanges.map(ex => (
+                    <option key={ex} value={ex}>{ex.charAt(0).toUpperCase() + ex.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">Exchange 2:</label>
+                <select
+                  value={selectedExchange2}
+                  onChange={(e) => setSelectedExchange2(e.target.value as ExchangeId)}
+                  className="px-3 py-2 rounded-md bg-background border border-border text-foreground"
+                >
+                  {availableExchanges.filter(ex => ex !== selectedExchange1).map(ex => (
+                    <option key={ex} value={ex}>{ex.charAt(0).toUpperCase() + ex.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {loading && !data ? (
             <div className="flex items-center justify-center py-12">
@@ -232,7 +269,7 @@ export function SpreadHistoryModal({
               <div className="bg-card border border-border rounded-lg p-4">
                 <h3 className="text-sm font-semibold mb-4 text-card-foreground">Funding Rates Comparison</h3>
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={chartData}>
+                  <LineChart data={chartData} key={`${selectedExchange1}-${selectedExchange2}`}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis
                       dataKey="time"
@@ -253,22 +290,24 @@ export function SpreadHistoryModal({
                       }}
                       formatter={(value: number, name: string) => [
                         `${value.toFixed(4)}%`,
-                        name === 'binance' ? 'Binance' : 'Lighter',
+                        name === 'exchange1' ? ex1Config.name : ex2Config.name,
                       ]}
                     />
                     <Line
                       type="monotone"
-                      dataKey="binance"
-                      stroke="#f59e0b"
+                      dataKey="exchange1"
+                      stroke={ex1Config.color}
                       strokeWidth={2}
                       dot={false}
+                      name="exchange1"
                     />
                     <Line
                       type="monotone"
-                      dataKey="lighter"
-                      stroke="#10b981"
+                      dataKey="exchange2"
+                      stroke={ex2Config.color}
                       strokeWidth={2}
                       dot={false}
+                      name="exchange2"
                     />
                   </LineChart>
                 </ResponsiveContainer>

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase'
+import type { ExchangeId } from '@/lib/types'
+import { EXCHANGE_CONFIG } from '@/lib/types'
 
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
@@ -7,8 +9,8 @@ export const dynamic = 'force-dynamic'
 interface SpreadHistoryPoint {
   timestamp: string
   spread_percent: number
-  binance_rate: number
-  lighter_rate: number
+  exchange1_rate: number
+  exchange2_rate: number
 }
 
 interface SpreadStatistics {
@@ -30,6 +32,8 @@ export async function GET(
     const { symbol } = await params
     const searchParams = request.nextUrl.searchParams
     const hours = parseInt(searchParams.get('hours') || '6', 10)
+    const exchange1 = (searchParams.get('exchange1') || 'binance') as ExchangeId
+    const exchange2 = (searchParams.get('exchange2') || 'lighter') as ExchangeId
 
     const supabase = getSupabase()
 
@@ -37,21 +41,15 @@ export async function GET(
     const hoursAgo = new Date()
     hoursAgo.setHours(hoursAgo.getHours() - hours)
 
-    // Fetch historical spread data
+    // Get column names for the exchanges
+    const ex1Column = `${exchange1}_rate` as const
+    const ex2Column = `${exchange2}_rate` as const
+
+    // Fetch historical spread data with dynamic exchange columns
     const { data: spreadData, error: spreadError } = await supabase
       .from('funding_spreads')
-      .select('created_at, spread_percent, binance_rate, lighter_rate')
+      .select(`created_at, ${ex1Column}, ${ex2Column}`)
       .eq('symbol', symbol)
-      .gte('created_at', hoursAgo.toISOString())
-      .order('created_at', { ascending: true })
-
-    // Fetch Binance funding data to get next_funding_time for period calculation
-    const binanceSymbol = symbol.includes('USDT') ? symbol : `${symbol}USDT`
-    const { data: binanceData, error: binanceError } = await supabase
-      .from('funding_rates')
-      .select('created_at, next_funding_time')
-      .eq('symbol', binanceSymbol)
-      .eq('exchange', 'binance')
       .gte('created_at', hoursAgo.toISOString())
       .order('created_at', { ascending: true })
 
@@ -63,61 +61,46 @@ export async function GET(
       return NextResponse.json({
         success: true,
         symbol,
+        exchange1,
+        exchange2,
         history: [],
         statistics: null,
         message: 'No historical data available for this symbol',
       })
     }
 
-    // Create a map of timestamps to funding periods
-    const periodMap = new Map<string, number>()
+    // Filter out rows where either exchange has no data
+    const validData = spreadData.filter(
+      (row) => row[ex1Column] != null && row[ex2Column] != null
+    )
 
-    if (binanceData && binanceData.length > 0) {
-      binanceData.forEach((row) => {
-        if (row.next_funding_time) {
-          const createdTime = new Date(row.created_at).getTime()
-          const nextFundingTime = row.next_funding_time
-          const periodHours = (nextFundingTime - createdTime) / (1000 * 60 * 60)
-
-          // Round to nearest hour to handle small variations (should be 4 or 8)
-          const roundedPeriod = Math.round(periodHours)
-          periodMap.set(row.created_at, roundedPeriod)
-        }
+    if (validData.length === 0) {
+      return NextResponse.json({
+        success: true,
+        symbol,
+        exchange1,
+        exchange2,
+        history: [],
+        statistics: null,
+        message: `No data available for ${exchange1} and ${exchange2} combination`,
       })
     }
 
-    // Helper function to find closest period for a timestamp
-    const getPeriodForTimestamp = (timestamp: string): number => {
-      // Try exact match first
-      if (periodMap.has(timestamp)) {
-        return periodMap.get(timestamp)!
-      }
+    // Get funding period hours for each exchange
+    const ex1Period = EXCHANGE_CONFIG[exchange1].fundingPeriodHours
+    const ex2Period = EXCHANGE_CONFIG[exchange2].fundingPeriodHours
 
-      // If no exact match, find closest timestamp within 1 minute
-      const targetTime = new Date(timestamp).getTime()
-      let closestPeriod = 8 // Default to 8h if not found
-      let minDiff = Infinity
-
-      periodMap.forEach((period, ts) => {
-        const diff = Math.abs(new Date(ts).getTime() - targetTime)
-        if (diff < minDiff && diff < 60000) { // Within 1 minute
-          minDiff = diff
-          closestPeriod = period
-        }
-      })
-
-      return closestPeriod
-    }
-
-    // Transform data and normalize rates to hourly using actual periods
-    const history: SpreadHistoryPoint[] = spreadData.map((row) => {
-      const binancePeriod = getPeriodForTimestamp(row.created_at)
+    // Transform data and normalize rates to hourly
+    const history: SpreadHistoryPoint[] = validData.map((row) => {
+      const ex1Rate = (row[ex1Column] as number) / ex1Period
+      const ex2Rate = (row[ex2Column] as number) / ex2Period
+      const spreadPercent = Math.abs(ex1Rate - ex2Rate) * 100
 
       return {
         timestamp: row.created_at,
-        spread_percent: row.spread_percent,
-        binance_rate: row.binance_rate / binancePeriod, // Normalize using actual period
-        lighter_rate: row.lighter_rate / 8, // Lighter is always 8h
+        spread_percent: spreadPercent,
+        exchange1_rate: ex1Rate,
+        exchange2_rate: ex2Rate,
       }
     })
 
@@ -163,6 +146,8 @@ export async function GET(
     return NextResponse.json({
       success: true,
       symbol,
+      exchange1,
+      exchange2,
       period: `${hours}h`,
       history,
       statistics,

@@ -180,8 +180,8 @@ export interface FundingSpread {
 export interface SpreadHistoryPoint {
   timestamp: string
   spread_percent: number
-  binance_rate: number
-  lighter_rate: number
+  exchange1_rate: number
+  exchange2_rate: number
 }
 
 export interface SpreadStatistics {
@@ -198,6 +198,8 @@ export interface SpreadStatistics {
 export interface SpreadHistoryResponse {
   success: boolean
   symbol: string
+  exchange1?: ExchangeId
+  exchange2?: ExchangeId
   period: string
   history: SpreadHistoryPoint[]
   statistics: SpreadStatistics | null
