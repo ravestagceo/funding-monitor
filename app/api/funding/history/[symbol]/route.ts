@@ -86,14 +86,10 @@ export async function GET(
       })
     }
 
-    // Get funding period hours for each exchange
-    const ex1Period = EXCHANGE_CONFIG[exchange1].fundingPeriodHours
-    const ex2Period = EXCHANGE_CONFIG[exchange2].fundingPeriodHours
-
-    // Transform data and normalize rates to hourly
+    // Transform data - rates in DB are already hourly, just need to convert to percent
     const history: SpreadHistoryPoint[] = validData.map((row) => {
-      const ex1Rate = ((row as any)[ex1Column] as number) / ex1Period
-      const ex2Rate = ((row as any)[ex2Column] as number) / ex2Period
+      const ex1Rate = (row as any)[ex1Column] as number  // Already hourly
+      const ex2Rate = (row as any)[ex2Column] as number  // Already hourly
       const spreadPercent = Math.abs(ex1Rate - ex2Rate) * 100
 
       return {

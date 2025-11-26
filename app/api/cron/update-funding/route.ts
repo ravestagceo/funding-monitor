@@ -259,10 +259,10 @@ export async function GET(request: NextRequest) {
 
       spreadRecords.push({
         symbol,
-        binance_rate: binance?.rate || 0,
-        lighter_rate: lighter?.rate || 0,
-        hyperliquid_rate: hyperliquid?.rate,
-        bybit_rate: bybit?.rate,
+        binance_rate: binance?.hourlyRate || 0,
+        lighter_rate: lighter?.hourlyRate || 0,
+        hyperliquid_rate: hyperliquid?.hourlyRate,
+        bybit_rate: bybit?.hourlyRate,
         spread_percent: maxSpread,
         binance_mark_price: binance?.markPrice,
       })
