@@ -288,15 +288,21 @@ export function SpreadHistoryModal({
                         borderRadius: '6px',
                         color: 'hsl(var(--popover-foreground))',
                       }}
-                      formatter={(value: number, name: string) => [
-                        `${value.toFixed(4)}%`,
-                        name === 'exchange1' ? ex1Config.name : ex2Config.name,
-                      ]}
+                      formatter={(value: number, name: string) => {
+                        const isLong = name === 'exchange1'
+                        return [
+                          `${value.toFixed(4)}%`,
+                          `${isLong ? ex1Config.name + ' (Long)' : ex2Config.name + ' (Short)'}`,
+                        ]
+                      }}
+                      itemStyle={{
+                        color: 'hsl(var(--popover-foreground))',
+                      }}
                     />
                     <Line
                       type="monotone"
                       dataKey="exchange1"
-                      stroke={ex1Config.color}
+                      stroke="#10b981"
                       strokeWidth={2}
                       dot={false}
                       name="exchange1"
@@ -304,7 +310,7 @@ export function SpreadHistoryModal({
                     <Line
                       type="monotone"
                       dataKey="exchange2"
-                      stroke={ex2Config.color}
+                      stroke="#ef4444"
                       strokeWidth={2}
                       dot={false}
                       name="exchange2"
