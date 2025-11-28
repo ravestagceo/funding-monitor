@@ -128,6 +128,26 @@ export default function MatrixPage() {
     return 'outline'
   }
 
+  const formatCountdown = (timestamp?: number) => {
+    if (!timestamp) return '-'
+    const now = Date.now()
+    const diff = timestamp - now
+    if (diff <= 0) return '0:00:00'
+
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  // Force component rerender every second for countdown updates
+  const [, setNow] = useState(Date.now())
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-[1800px] mx-auto">
@@ -264,21 +284,30 @@ export default function MatrixPage() {
                           return (
                             <TableCell key={exchange} className="text-center">
                               {rate?.available ? (
-                                <a
-                                  href={getExchangeUrl(exchange, spread.symbol)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`inline-flex items-center gap-1 font-mono text-sm hover:underline ${getRateColor(
-                                    rate.hourlyRate
-                                  )} ${isLong ? 'bg-green-500/20 px-2 py-0.5 rounded' : ''} ${
-                                    isShort ? 'bg-red-500/20 px-2 py-0.5 rounded' : ''
-                                  }`}
-                                  title={`${isLong ? 'LONG' : isShort ? 'SHORT' : ''} - Click to open`}
-                                >
-                                  {formatRate(rate.hourlyRate)}
-                                  <ExternalLink className="h-3 w-3 opacity-50" />
-                                </a>
+                                <div className="flex flex-col items-center gap-1">
+                                  <a
+                                    href={getExchangeUrl(exchange, spread.symbol)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={`inline-flex items-center gap-1 font-mono text-sm hover:underline ${getRateColor(
+                                      rate.hourlyRate
+                                    )} ${isLong ? 'bg-green-500/20 px-2 py-0.5 rounded' : ''} ${
+                                      isShort ? 'bg-red-500/20 px-2 py-0.5 rounded' : ''
+                                    }`}
+                                    title={`${isLong ? 'LONG' : isShort ? 'SHORT' : ''} - Click to open`}
+                                  >
+                                    {formatRate(rate.hourlyRate)}
+                                    <ExternalLink className="h-3 w-3 opacity-50" />
+                                  </a>
+                                  <div
+                                    className={`text-xs font-mono ${
+                                      isLong ? 'text-green-400' : isShort ? 'text-red-400' : 'text-muted-foreground'
+                                    }`}
+                                  >
+                                    {formatCountdown(rate.nextFundingTime)}
+                                  </div>
+                                </div>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}

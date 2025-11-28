@@ -13,24 +13,28 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { SpreadHistoryModal } from '@/components/spread-history-modal'
-import type { FundingSpread } from '@/lib/types'
+import type { MultiExchangeSpread, ExchangeId } from '@/lib/types'
+import { EXCHANGE_CONFIG } from '@/lib/types'
 import { ArrowUpDown, RefreshCw, TrendingUp, Clock, ExternalLink, Activity } from 'lucide-react'
 
 export default function Home() {
-  const [spreads, setSpreads] = useState<FundingSpread[]>([])
-  const [filteredSpreads, setFilteredSpreads] = useState<FundingSpread[]>([])
+  const [spreads, setSpreads] = useState<MultiExchangeSpread[]>([])
+  const [filteredSpreads, setFilteredSpreads] = useState<MultiExchangeSpread[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState<'symbol' | 'spread' | 'binance' | 'lighter'>('spread')
+  const [sortBy, setSortBy] = useState<'symbol' | 'spread'>('spread')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [selectedSymbol, setSelectedSymbol] = useState<string>('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [availableExchanges, setAvailableExchanges] = useState<ExchangeId[]>([])
+  const [selectedExchange1, setSelectedExchange1] = useState<ExchangeId>('binance')
+  const [selectedExchange2, setSelectedExchange2] = useState<ExchangeId>('hyperliquid')
 
   const fetchSpreads = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/funding/spreads')
+      const response = await fetch('/api/funding/multi-spreads')
       const result = await response.json()
 
       if (result.success) {
@@ -74,16 +78,8 @@ export default function Home() {
           bValue = b.symbol
           break
         case 'spread':
-          aValue = Math.abs(a.spreadHourly)
-          bValue = Math.abs(b.spreadHourly)
-          break
-        case 'binance':
-          aValue = a.binanceHourlyRate
-          bValue = b.binanceHourlyRate
-          break
-        case 'lighter':
-          aValue = a.lighterHourlyRate
-          bValue = b.lighterHourlyRate
+          aValue = Math.abs(a.bestSpread.spreadHourly)
+          bValue = Math.abs(b.bestSpread.spreadHourly)
           break
       }
 
@@ -99,12 +95,25 @@ export default function Home() {
     setFilteredSpreads(sorted)
   }, [sortBy, sortOrder])
 
-  const handleSort = (column: 'symbol' | 'spread' | 'binance' | 'lighter') => {
+  const handleSort = (column: 'symbol' | 'spread') => {
     if (sortBy === column) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
     } else {
       setSortBy(column)
       setSortOrder('desc')
+    }
+  }
+
+  const getExchangeUrl = (exchange: ExchangeId, symbol: string) => {
+    switch (exchange) {
+      case 'binance':
+        return `https://www.binance.com/en/futures/${symbol}USDT`
+      case 'bybit':
+        return `https://www.bybit.com/trade/usdt/${symbol}USDT`
+      case 'hyperliquid':
+        return `https://app.hyperliquid.xyz/trade/${symbol}`
+      case 'lighter':
+        return `https://app.lighter.xyz/trade/${symbol}`
     }
   }
 
@@ -130,6 +139,11 @@ export default function Home() {
     return spread >= 0 ? `+${formatted}%` : `${formatted}%`
   }
 
+  const formatRate = (rate: number) => {
+    const formatted = (rate * 100).toFixed(4)
+    return rate >= 0 ? `+${formatted}%` : `${formatted}%`
+  }
+
   const formatCountdown = (timestamp?: number) => {
     if (!timestamp) return '-'
     const now = Date.now()
@@ -141,6 +155,19 @@ export default function Home() {
     const seconds = Math.floor((diff % (1000 * 60)) / 1000)
 
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  // Force component rerender every second for countdown updates
+  const [, setNow] = useState(Date.now())
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const getRateColor = (rate: number) => {
+    if (rate > 0.0001) return 'text-green-400'
+    if (rate < -0.0001) return 'text-red-400'
+    return 'text-muted-foreground'
   }
 
   const getSpreadColor = (spread: number) => {
@@ -197,8 +224,11 @@ export default function Home() {
     return { variant: 'destructive' as const, label: 'None', tooltip: 'Not profitable' }
   }
 
-  const handleRowClick = (symbol: string) => {
-    setSelectedSymbol(symbol)
+  const handleRowClick = (spread: MultiExchangeSpread) => {
+    setSelectedSymbol(spread.symbol)
+    setAvailableExchanges(Object.keys(spread.exchanges) as ExchangeId[])
+    setSelectedExchange1(spread.bestSpread.longExchange)
+    setSelectedExchange2(spread.bestSpread.shortExchange)
     setModalOpen(true)
   }
 
@@ -208,6 +238,9 @@ export default function Home() {
         symbol={selectedSymbol}
         open={modalOpen}
         onOpenChange={setModalOpen}
+        availableExchanges={availableExchanges}
+        initialExchange1={selectedExchange1}
+        initialExchange2={selectedExchange2}
       />
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto">
@@ -268,23 +301,23 @@ export default function Home() {
                           <ArrowUpDown className="h-4 w-4" />
                         </button>
                       </TableHead>
-                      <TableHead>
-                        <button
-                          onClick={() => handleSort('binance')}
-                          className="flex items-center gap-1 hover:text-foreground"
-                        >
-                          Binance (hourly)
-                          <ArrowUpDown className="h-4 w-4" />
-                        </button>
+                      <TableHead className="text-center">
+                        <div className="text-green-400 font-semibold">Long Exchange</div>
                       </TableHead>
-                      <TableHead>
-                        <button
-                          onClick={() => handleSort('lighter')}
-                          className="flex items-center gap-1 hover:text-foreground"
-                        >
-                          Lighter (hourly)
-                          <ArrowUpDown className="h-4 w-4" />
-                        </button>
+                      <TableHead className="text-center">
+                        <div className="text-green-400 font-semibold flex items-center justify-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Funding
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-center">
+                        <div className="text-red-400 font-semibold">Short Exchange</div>
+                      </TableHead>
+                      <TableHead className="text-center">
+                        <div className="text-red-400 font-semibold flex items-center justify-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Funding
+                        </div>
                       </TableHead>
                       <TableHead>
                         <button
@@ -304,20 +337,21 @@ export default function Home() {
                         </div>
                       </TableHead>
                       <TableHead className="text-right">Mark Price</TableHead>
-                      <TableHead className="text-right">
-                        <Clock className="h-4 w-4 inline mr-1" />
-                        Next Funding
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSpreads.map((spread) => {
-                      const stability = getStabilityBadge(spread.spreadHourly)
+                      const stability = getStabilityBadge(spread.bestSpread.spreadHourly)
+                      const longExchange = spread.bestSpread.longExchange
+                      const shortExchange = spread.bestSpread.shortExchange
+                      const longRate = spread.exchanges[longExchange]
+                      const shortRate = spread.exchanges[shortExchange]
+
                       return (
                       <TableRow
                         key={spread.symbol}
                         className="border-border hover:bg-accent/30 transition-colors cursor-pointer"
-                        onClick={() => handleRowClick(spread.symbol)}
+                        onClick={() => handleRowClick(spread)}
                       >
                         <TableCell className="font-mono font-semibold text-foreground">
                           <div className="flex items-center gap-2">
@@ -330,43 +364,70 @@ export default function Home() {
                             <span>{spread.symbol}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          <a
-                            href={getBinanceUrl(spread.symbol)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-foreground hover:text-primary transition-all duration-200 cursor-pointer group"
-                            title="Open on Binance"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="group-hover:underline">{formatRate(spread.binanceHourlyRate)}</span>
-                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                          </a>
+
+                        {/* Long Exchange Rate */}
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <a
+                              href={getExchangeUrl(longExchange, spread.symbol)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 hover:underline bg-green-500/20 px-2 py-1 rounded"
+                              title={`LONG on ${EXCHANGE_CONFIG[longExchange].name}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EXCHANGE_CONFIG[longExchange].color }} />
+                              <span className="font-mono text-sm text-green-400">{formatRate(longRate?.hourlyRate || 0)}</span>
+                              <ExternalLink className="h-3 w-3 opacity-50" />
+                            </a>
+                            <div className="text-xs text-muted-foreground">{EXCHANGE_CONFIG[longExchange].name}</div>
+                          </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          <a
-                            href={getLighterUrl(spread.symbol)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-foreground hover:text-primary transition-all duration-200 cursor-pointer group"
-                            title="Open on Lighter"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="group-hover:underline">{formatRate(spread.lighterHourlyRate)}</span>
-                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                          </a>
+
+                        {/* Long Countdown */}
+                        <TableCell className="text-center">
+                          <div className="font-mono text-xs text-green-400">
+                            {formatCountdown(longRate?.nextFundingTime)}
+                          </div>
                         </TableCell>
-                        <TableCell className={`font-mono font-semibold ${getSpreadColor(spread.spreadHourly)}`}>
-                          {formatSpread(spread.spreadHourly)}
+
+                        {/* Short Exchange Rate */}
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <a
+                              href={getExchangeUrl(shortExchange, spread.symbol)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 hover:underline bg-red-500/20 px-2 py-1 rounded"
+                              title={`SHORT on ${EXCHANGE_CONFIG[shortExchange].name}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EXCHANGE_CONFIG[shortExchange].color }} />
+                              <span className="font-mono text-sm text-red-400">{formatRate(shortRate?.hourlyRate || 0)}</span>
+                              <ExternalLink className="h-3 w-3 opacity-50" />
+                            </a>
+                            <div className="text-xs text-muted-foreground">{EXCHANGE_CONFIG[shortExchange].name}</div>
+                          </div>
+                        </TableCell>
+
+                        {/* Short Countdown */}
+                        <TableCell className="text-center">
+                          <div className="font-mono text-xs text-red-400">
+                            {formatCountdown(shortRate?.nextFundingTime)}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className={`font-mono font-semibold ${getSpreadColor(spread.bestSpread.spreadHourly)}`}>
+                          {formatSpread(spread.bestSpread.spreadHourly)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getBadgeVariant(spread.spreadDaily)}>
-                            {formatSpread(spread.spreadDaily)}
+                          <Badge variant={getBadgeVariant(spread.bestSpread.spreadDaily)}>
+                            {formatSpread(spread.bestSpread.spreadDaily)}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getBadgeVariant(spread.spreadAnnual)}>
-                            {formatSpread(spread.spreadAnnual)}
+                          <Badge variant={getBadgeVariant(spread.bestSpread.spreadAnnual)}>
+                            {formatSpread(spread.bestSpread.spreadAnnual)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -375,15 +436,12 @@ export default function Home() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                          {spread.binanceMarkPrice
-                            ? `$${spread.binanceMarkPrice.toLocaleString(undefined, {
+                          {longRate?.markPrice
+                            ? `$${longRate.markPrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 8,
                               })}`
                             : '-'}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                          {formatCountdown(spread.binanceNextFunding)}
                         </TableCell>
                       </TableRow>
                       )
@@ -406,7 +464,10 @@ export default function Home() {
             All rates normalized to hourly • Data refreshes every 5 minutes
           </p>
           <p className="mt-1">
-            Spread = (Binance hourly - Lighter hourly) × 100% • Click row for detailed history
+            Spread = |Long hourly - Short hourly| × 100% • Click row for detailed history
+          </p>
+          <p className="mt-1 text-xs">
+            <span className="text-green-400">Green</span> = Long position • <span className="text-red-400">Red</span> = Short position
           </p>
         </div>
       </div>
