@@ -247,6 +247,7 @@ export default function MatrixPage() {
                           </div>
                         </TableHead>
                       ))}
+                      <TableHead className="text-center">Price Spread</TableHead>
                       <TableHead>
                         <button
                           onClick={() => handleSort('spread')}
@@ -314,6 +315,22 @@ export default function MatrixPage() {
                             </TableCell>
                           )
                         })}
+                        {/* Price Spread */}
+                        <TableCell className="text-center">
+                          {(() => {
+                            const longRate = spread.exchanges[spread.bestSpread.longExchange]
+                            const shortRate = spread.exchanges[spread.bestSpread.shortExchange]
+                            if (longRate?.markPrice && shortRate?.markPrice) {
+                              const priceSpread = ((longRate.markPrice - shortRate.markPrice) / shortRate.markPrice) * 100
+                              return (
+                                <span className={`font-mono text-xs ${priceSpread >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {priceSpread >= 0 ? '+' : ''}{priceSpread.toFixed(2)}%
+                                </span>
+                              )
+                            }
+                            return <span className="text-muted-foreground text-xs">-</span>
+                          })()}
+                        </TableCell>
                         <TableCell className={`font-mono font-semibold ${getSpreadColor(spread.bestSpread.spreadHourly)}`}>
                           {formatSpread(spread.bestSpread.spreadHourly)}
                         </TableCell>

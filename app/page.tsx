@@ -294,6 +294,9 @@ export default function Home() {
                         </div>
                       </TableHead>
                       <TableHead className="text-center">
+                        <div className="font-semibold">Price Spread</div>
+                      </TableHead>
+                      <TableHead className="text-center">
                         <div className="text-red-400 font-semibold">Short Exchange</div>
                       </TableHead>
                       <TableHead className="text-center">
@@ -372,6 +375,24 @@ export default function Home() {
                           <div className="font-mono text-xs text-green-400">
                             {formatCountdown(longRate?.nextFundingTime)}
                           </div>
+                        </TableCell>
+
+                        {/* Price Spread */}
+                        <TableCell className="text-center">
+                          {longRate?.markPrice && shortRate?.markPrice ? (
+                            <div className="font-mono text-xs">
+                              {(() => {
+                                const priceSpread = ((longRate.markPrice - shortRate.markPrice) / shortRate.markPrice) * 100
+                                return (
+                                  <span className={priceSpread >= 0 ? 'text-green-400' : 'text-red-400'}>
+                                    {priceSpread >= 0 ? '+' : ''}{priceSpread.toFixed(2)}%
+                                  </span>
+                                )
+                              })()}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
 
                         {/* Short Exchange Rate */}
