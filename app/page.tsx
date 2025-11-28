@@ -117,31 +117,14 @@ export default function Home() {
     }
   }
 
-  const getBinanceUrl = (symbol: string) => {
-    // Convert symbol format: BTC -> BTCUSDT
-    let binanceSymbol = symbol
-    if (!symbol.includes('USDT')) {
-      binanceSymbol = `${symbol}USDT`
-    }
-    return `https://www.binance.com/en/futures/${binanceSymbol}`
-  }
-
-  const getLighterUrl = (symbol: string) => {
-    return `https://app.lighter.xyz/trade/${symbol}`
-  }
-
   const formatRate = (rate: number) => {
-    return (rate * 100).toFixed(4) + '%'
+    const formatted = (rate * 100).toFixed(4)
+    return rate >= 0 ? `+${formatted}%` : `${formatted}%`
   }
 
   const formatSpread = (spread: number) => {
     const formatted = spread.toFixed(4)
     return spread >= 0 ? `+${formatted}%` : `${formatted}%`
-  }
-
-  const formatRate = (rate: number) => {
-    const formatted = (rate * 100).toFixed(4)
-    return rate >= 0 ? `+${formatted}%` : `${formatted}%`
   }
 
   const formatCountdown = (timestamp?: number) => {
