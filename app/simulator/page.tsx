@@ -41,7 +41,11 @@ interface SimulationPoint {
 }
 
 export default function SimulatorPage() {
-  // Initial parameters
+  // Entry prices (when position was opened)
+  const [entryLongPrice, setEntryLongPrice] = useState(100)
+  const [entryShortPrice, setEntryShortPrice] = useState(100)
+
+  // Current/simulation parameters
   const [params, setParams] = useState<SimulationParams>({
     longPrice: 100,
     shortPrice: 100,
@@ -59,11 +63,11 @@ export default function SimulatorPage() {
   const [maxTime] = useState(168) // 1 week in hours
   const [history, setHistory] = useState<SimulationPoint[]>([])
 
-  // Initial capital
+  // Initial capital (based on entry prices)
   const initialCapital = useMemo(() => {
-    return (params.longPrice * params.longQuantity) / params.longLeverage +
-           (params.shortPrice * params.shortQuantity) / params.shortLeverage
-  }, [params.longPrice, params.shortPrice, params.longQuantity, params.shortQuantity, params.longLeverage, params.shortLeverage])
+    return (entryLongPrice * params.longQuantity) / params.longLeverage +
+           (entryShortPrice * params.shortQuantity) / params.shortLeverage
+  }, [entryLongPrice, entryShortPrice, params.longQuantity, params.longLeverage, params.shortLeverage])
 
   // Price spread
   const priceSpread = useMemo(() => {
@@ -81,16 +85,21 @@ export default function SimulatorPage() {
     currentShortPrice: number,
     hours: number
   ) => {
-    // Price PnL
-    const longPricePnL = (currentLongPrice - params.longPrice) * params.longQuantity
-    const shortPricePnL = (params.shortPrice - currentShortPrice) * params.shortQuantity
+    // Price PnL (compared to entry prices)
+    // Long: profit when price goes up, loss when price goes down
+    // Short: profit when price goes down, loss when price goes up
+    const longPricePnL = (currentLongPrice - entryLongPrice) * params.longQuantity
+    const shortPricePnL = (entryShortPrice - currentShortPrice) * params.shortQuantity
     const totalPricePnL = longPricePnL + shortPricePnL
 
     // Funding PnL (accumulated over time)
+    // Rates are in % per hour, need to divide by 100
     // Long pays funding if positive, receives if negative
     // Short receives funding if positive, pays if negative
-    const longFundingPnL = -params.longFundingRate * params.longPrice * params.longQuantity * hours
-    const shortFundingPnL = params.shortFundingRate * params.shortPrice * params.shortQuantity * hours
+    const longNotional = entryLongPrice * params.longQuantity
+    const shortNotional = entryShortPrice * params.shortQuantity
+    const longFundingPnL = -(params.longFundingRate / 100) * longNotional * hours
+    const shortFundingPnL = (params.shortFundingRate / 100) * shortNotional * hours
     const totalFundingPnL = longFundingPnL + shortFundingPnL
 
     const totalPnL = totalPricePnL + totalFundingPnL
@@ -173,6 +182,13 @@ export default function SimulatorPage() {
     setIsPlaying(false)
   }
 
+  const resetEntryPoint = () => {
+    setEntryLongPrice(params.longPrice)
+    setEntryShortPrice(params.shortPrice)
+    setCurrentTime(0)
+    setIsPlaying(false)
+  }
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-[1800px] mx-auto space-y-6">
@@ -196,6 +212,9 @@ export default function SimulatorPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Price Settings</CardTitle>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Entry: L: ${entryLongPrice.toFixed(2)} / S: ${entryShortPrice.toFixed(2)}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -234,6 +253,9 @@ export default function SimulatorPage() {
                     </Badge>
                   </div>
                 </div>
+                <Button onClick={resetEntryPoint} variant="outline" className="w-full" size="sm">
+                  Set as Entry Point
+                </Button>
               </CardContent>
             </Card>
 
