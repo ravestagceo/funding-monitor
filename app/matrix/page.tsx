@@ -17,7 +17,7 @@ import type { MultiExchangeSpread, ExchangeId } from '@/lib/types'
 import { EXCHANGE_CONFIG } from '@/lib/types'
 import { SpreadHistoryModal } from '@/components/spread-history-modal'
 
-const EXCHANGES: ExchangeId[] = ['binance', 'hyperliquid', 'bybit', 'lighter']
+const EXCHANGES: ExchangeId[] = ['binance', 'hyperliquid', 'bybit', 'lighter', 'mexc', 'aster']
 
 export default function MatrixPage() {
   const [spreads, setSpreads] = useState<MultiExchangeSpread[]>([])

@@ -75,11 +75,11 @@ export async function fetchMexcFundingRates(): Promise<NormalizedFundingRate[]> 
 
 /**
  * Fetch list of tradeable symbols from MEXC
- * This is a helper to get all available perpetual contracts
+ * Limited to top 15 most liquid pairs for performance
  */
 async function fetchMexcSymbols(): Promise<string[]> {
-  // Common USDT perpetual pairs on MEXC
-  // In production, you might want to fetch this from MEXC contract details endpoint
+  // Top liquid USDT perpetual pairs on MEXC
+  // Limited list for faster cron execution
   return [
     'BTC_USDT',
     'ETH_USDT',
@@ -92,25 +92,10 @@ async function fetchMexcSymbols(): Promise<string[]> {
     'DOT_USDT',
     'MATIC_USDT',
     'LINK_USDT',
-    'UNI_USDT',
-    'ATOM_USDT',
-    'FTM_USDT',
-    'NEAR_USDT',
-    'APT_USDT',
     'ARB_USDT',
     'OP_USDT',
     'SUI_USDT',
-    'SEI_USDT',
-    'TIA_USDT',
-    'WLD_USDT',
-    'ORDI_USDT',
     'INJ_USDT',
-    'STX_USDT',
-    'BLUR_USDT',
-    'PYTH_USDT',
-    'JUP_USDT',
-    'STRK_USDT',
-    'W_USDT',
   ]
 }
 
