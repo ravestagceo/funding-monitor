@@ -1,24 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
-import type {
-  BinanceFundingRate,
-  LighterFundingRate,
-  BybitTickersResponse,
-  FundingRateDB,
-  FundingSpreadDB,
-  ExchangeId,
-} from '@/lib/types'
+import { fetchAllFundingRates } from '@/lib/exchanges'
+import type { FundingRateDB, FundingSpreadDB, ExchangeId } from '@/lib/types'
 
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
-
-interface NormalizedRate {
-  symbol: string
-  rate: number
-  hourlyRate: number
-  markPrice?: number
-  nextFundingTime?: number
-}
 
 export async function GET(request: NextRequest) {
   // Verify cron secret
@@ -30,227 +16,83 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getServiceSupabase()
 
-    // Fetch from all exchanges in parallel
-    const [binanceRes, lighterRes, hyperliquidRes, bybitRes, fundingInfoRes] = await Promise.allSettled([
-      fetch('https://fapi.binance.com/fapi/v1/premiumIndex', {
-        next: { revalidate: 0 },
-      }),
-      fetch('https://mainnet.zklighter.elliot.ai/api/v1/funding-rates', {
-        next: { revalidate: 0 },
-      }),
-      fetch('https://api.hyperliquid.xyz/info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'metaAndAssetCtxs' }),
-      }),
-      fetch('https://api.bybit.com/v5/market/tickers?category=linear', {
-        next: { revalidate: 0 },
-      }),
-      fetch('https://fapi.binance.com/fapi/v1/fundingInfo', {
-        next: { revalidate: 0 },
-      }),
-    ])
+    // Fetch rates from all exchanges using our fetcher functions
+    const allRates = await fetchAllFundingRates()
 
-    // Build map of symbol -> fundingIntervalHours from fundingInfo
-    const fundingIntervalMap = new Map<string, number>()
-    if (fundingInfoRes.status === 'fulfilled' && fundingInfoRes.value.ok) {
-      interface BinanceFundingInfo {
-        symbol: string
-        fundingIntervalHours: number
-      }
-      const fundingInfo: BinanceFundingInfo[] = await fundingInfoRes.value.json()
-      fundingInfo.forEach((info) => {
-        fundingIntervalMap.set(info.symbol, info.fundingIntervalHours)
-      })
-    }
+    // Build records for database insertion
+    const fundingRateRecords: FundingRateDB[] = []
+    const symbolMaps = new Map<ExchangeId, Map<string, { hourlyRate: number; markPrice?: number; nextFundingTime?: number }>>()
 
-    // Process Binance data
-    const binanceMap = new Map<string, NormalizedRate>()
-    const binanceRecords: FundingRateDB[] = []
+    // Process each exchange's rates
+    allRates.forEach((rates, exchange) => {
+      const symbolMap = new Map<string, { hourlyRate: number; markPrice?: number; nextFundingTime?: number }>()
 
-    if (binanceRes.status === 'fulfilled' && binanceRes.value.ok) {
-      const binanceData: BinanceFundingRate[] = await binanceRes.value.json()
-      binanceData
-        .filter((item) => item.lastFundingRate !== undefined && item.lastFundingRate !== null)
-        .filter((item) => fundingIntervalMap.has(item.symbol)) // Only symbols in fundingInfo
-        .forEach((item) => {
-          const rate = parseFloat(item.lastFundingRate || '0')
-          const normalizedSymbol = item.symbol.replace('USDT', '').replace('USDC', '').replace('1000', '')
-          const fundingPeriodHours = fundingIntervalMap.get(item.symbol) || 8
-
-          binanceRecords.push({
-            symbol: normalizedSymbol,
-            exchange: 'binance',
-            funding_rate: rate,
-            funding_period_hours: fundingPeriodHours,
-            mark_price: parseFloat(item.markPrice),
-            next_funding_time: item.nextFundingTime,
-          })
-
-          binanceMap.set(normalizedSymbol, {
-            symbol: normalizedSymbol,
-            rate,
-            hourlyRate: rate / fundingPeriodHours,
-            markPrice: parseFloat(item.markPrice),
-            nextFundingTime: item.nextFundingTime,
-          })
-        })
-    } else {
-      console.error('Failed to fetch Binance rates')
-    }
-
-    // Process Lighter data
-    const lighterMap = new Map<string, NormalizedRate>()
-    const lighterRecords: FundingRateDB[] = []
-
-    if (lighterRes.status === 'fulfilled' && lighterRes.value.ok) {
-      const lighterResult = await lighterRes.value.json()
-      const lighterData: LighterFundingRate[] = lighterResult.funding_rates || []
-
-      lighterData.forEach((item) => {
-        lighterRecords.push({
-          symbol: item.symbol,
-          exchange: 'lighter',
-          funding_rate: item.rate,
-          funding_period_hours: 8,
+      rates.forEach((rate) => {
+        fundingRateRecords.push({
+          symbol: rate.symbol,
+          exchange: rate.exchange,
+          funding_rate: rate.fundingRate,
+          funding_period_hours: rate.fundingPeriodHours,
+          mark_price: rate.markPrice,
+          next_funding_time: rate.nextFundingTime,
         })
 
-        lighterMap.set(item.symbol, {
-          symbol: item.symbol,
-          rate: item.rate,
-          hourlyRate: item.rate / 8,
+        symbolMap.set(rate.symbol, {
+          hourlyRate: rate.hourlyRate,
+          markPrice: rate.markPrice,
+          nextFundingTime: rate.nextFundingTime,
         })
       })
-    } else {
-      console.error('Failed to fetch Lighter rates')
-    }
 
-    // Process Hyperliquid data
-    const hyperliquidMap = new Map<string, NormalizedRate>()
-    const hyperliquidRecords: FundingRateDB[] = []
-
-    if (hyperliquidRes.status === 'fulfilled' && hyperliquidRes.value.ok) {
-      // Hyperliquid returns [meta, assetCtxs] array
-      const hlData = await hyperliquidRes.value.json() as [
-        { universe: Array<{ name: string }> },
-        Array<{ funding: string; markPx?: string }>
-      ]
-      const universe = hlData[0]?.universe || []
-      const assetCtxs = hlData[1] || []
-
-      universe.forEach((asset, index) => {
-        const ctx = assetCtxs[index]
-        if (!ctx || !ctx.funding) return
-
-        // Hyperliquid API returns HOURLY rate directly
-        const hourlyRate = parseFloat(ctx.funding)
-        const symbol = asset.name
-
-        hyperliquidRecords.push({
-          symbol,
-          exchange: 'hyperliquid',
-          funding_rate: hourlyRate,
-          funding_period_hours: 1, // Rate is already hourly
-          mark_price: ctx.markPx ? parseFloat(ctx.markPx) : undefined,
-        })
-
-        hyperliquidMap.set(symbol, {
-          symbol,
-          rate: hourlyRate,
-          hourlyRate,
-          markPrice: ctx.markPx ? parseFloat(ctx.markPx) : undefined,
-        })
-      })
-    } else {
-      console.error('Failed to fetch Hyperliquid rates')
-    }
-
-    // Process Bybit data
-    const bybitMap = new Map<string, NormalizedRate>()
-    const bybitRecords: FundingRateDB[] = []
-
-    if (bybitRes.status === 'fulfilled' && bybitRes.value.ok) {
-      const bybitData: BybitTickersResponse = await bybitRes.value.json()
-      const tickers = bybitData.result?.list || []
-
-      tickers
-        .filter((t) => t.symbol.endsWith('USDT') && t.fundingRate)
-        .forEach((ticker) => {
-          const rate = parseFloat(ticker.fundingRate)
-          const normalizedSymbol = ticker.symbol.replace('USDT', '').replace('USDC', '').replace('1000', '')
-          // Use fundingIntervalHour from API (4 or 8), default to 8
-          const fundingPeriodHours = ticker.fundingIntervalHour
-            ? parseInt(ticker.fundingIntervalHour, 10)
-            : 8
-          const hourlyRate = rate / fundingPeriodHours
-
-          bybitRecords.push({
-            symbol: normalizedSymbol,
-            exchange: 'bybit',
-            funding_rate: rate,
-            funding_period_hours: fundingPeriodHours,
-            mark_price: parseFloat(ticker.markPrice),
-            next_funding_time: parseInt(ticker.nextFundingTime),
-          })
-
-          bybitMap.set(normalizedSymbol, {
-            symbol: normalizedSymbol,
-            rate,
-            hourlyRate,
-            markPrice: parseFloat(ticker.markPrice),
-            nextFundingTime: parseInt(ticker.nextFundingTime),
-          })
-        })
-    } else {
-      console.error('Failed to fetch Bybit rates')
-    }
+      symbolMaps.set(exchange, symbolMap)
+    })
 
     // Insert all funding rates
-    const allRecords = [...binanceRecords, ...lighterRecords, ...hyperliquidRecords, ...bybitRecords]
-
-    if (allRecords.length > 0) {
+    if (fundingRateRecords.length > 0) {
       const { error: insertError } = await supabase
         .from('funding_rates')
-        .insert(allRecords)
+        .insert(fundingRateRecords)
 
       if (insertError) {
         console.error('Error inserting funding rates:', insertError)
       }
     }
 
-    // Calculate and insert spreads for all symbols that exist on at least 2 exchanges
-    const allSymbols = new Set<string>([
-      ...lighterMap.keys(),
-      ...hyperliquidMap.keys(),
-      ...bybitMap.keys(),
-    ])
-
+    // Build spread records
     const spreadRecords: FundingSpreadDB[] = []
 
+    // Get all unique symbols across all exchanges
+    const allSymbols = new Set<string>()
+    allRates.forEach((rates) => {
+      rates.forEach((rate) => allSymbols.add(rate.symbol))
+    })
+
+    // Calculate spreads for symbols that exist on multiple exchanges
     allSymbols.forEach((symbol) => {
-      const binance = binanceMap.get(symbol)
-      const lighter = lighterMap.get(symbol)
-      const hyperliquid = hyperliquidMap.get(symbol)
-      const bybit = bybitMap.get(symbol)
+      const binance = symbolMaps.get('binance')?.get(symbol)
+      const lighter = symbolMaps.get('lighter')?.get(symbol)
+      const hyperliquid = symbolMaps.get('hyperliquid')?.get(symbol)
+      const bybit = symbolMaps.get('bybit')?.get(symbol)
+      const mexc = symbolMaps.get('mexc')?.get(symbol)
+      const aster = symbolMaps.get('aster')?.get(symbol)
 
-      // Need at least Binance + one other exchange for meaningful spread
-      if (!binance) return
-      if (!lighter && !hyperliquid && !bybit) return
+      // Need at least 2 exchanges for meaningful spread
+      const availableExchanges = [binance, lighter, hyperliquid, bybit, mexc, aster].filter(Boolean).length
+      if (availableExchanges < 2) return
 
-      // Calculate best spread (max hourly rate difference)
-      const rates: { exchange: ExchangeId; hourlyRate: number }[] = []
-      if (binance) rates.push({ exchange: 'binance', hourlyRate: binance.hourlyRate })
-      if (lighter) rates.push({ exchange: 'lighter', hourlyRate: lighter.hourlyRate })
-      if (hyperliquid) rates.push({ exchange: 'hyperliquid', hourlyRate: hyperliquid.hourlyRate })
-      if (bybit) rates.push({ exchange: 'bybit', hourlyRate: bybit.hourlyRate })
+      // Calculate max spread among all available pairs
+      const rates: number[] = []
+      if (binance) rates.push(binance.hourlyRate)
+      if (lighter) rates.push(lighter.hourlyRate)
+      if (hyperliquid) rates.push(hyperliquid.hourlyRate)
+      if (bybit) rates.push(bybit.hourlyRate)
+      if (mexc) rates.push(mexc.hourlyRate)
+      if (aster) rates.push(aster.hourlyRate)
 
-      if (rates.length < 2) return
-
-      // Find max spread
       let maxSpread = 0
       for (let i = 0; i < rates.length; i++) {
         for (let j = i + 1; j < rates.length; j++) {
-          const spread = Math.abs(rates[i].hourlyRate - rates[j].hourlyRate) * 100
+          const spread = Math.abs(rates[i] - rates[j]) * 100
           if (spread > maxSpread) {
             maxSpread = spread
           }
@@ -263,28 +105,12 @@ export async function GET(request: NextRequest) {
         lighter_rate: lighter?.hourlyRate || 0,
         hyperliquid_rate: hyperliquid?.hourlyRate,
         bybit_rate: bybit?.hourlyRate,
+        mexc_rate: mexc?.hourlyRate,
+        aster_rate: aster?.hourlyRate,
         spread_percent: maxSpread,
         binance_mark_price: binance?.markPrice,
       })
     })
-
-    // Insert all funding rates into funding_rates table
-    const allFundingRates = [
-      ...binanceRecords,
-      ...lighterRecords,
-      ...hyperliquidRecords,
-      ...bybitRecords,
-    ]
-
-    if (allFundingRates.length > 0) {
-      const { error: ratesError } = await supabase
-        .from('funding_rates')
-        .insert(allFundingRates)
-
-      if (ratesError) {
-        console.error('Error inserting funding rates:', ratesError)
-      }
-    }
 
     // Insert spreads
     if (spreadRecords.length > 0) {
@@ -297,16 +123,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Calculate stats
+    const stats: Record<string, number> = {}
+    allRates.forEach((rates, exchange) => {
+      stats[`${exchange}Records`] = rates.length
+    })
+    stats.spreadRecords = spreadRecords.length
+
     return NextResponse.json({
       success: true,
       message: 'Funding rates updated successfully',
-      stats: {
-        binanceRecords: binanceRecords.length,
-        lighterRecords: lighterRecords.length,
-        hyperliquidRecords: hyperliquidRecords.length,
-        bybitRecords: bybitRecords.length,
-        spreadRecords: spreadRecords.length,
-      },
+      stats,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

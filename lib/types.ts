@@ -1,6 +1,6 @@
 // ============ Exchange Types ============
 
-export type ExchangeId = 'binance' | 'lighter' | 'hyperliquid' | 'bybit'
+export type ExchangeId = 'binance' | 'lighter' | 'hyperliquid' | 'bybit' | 'mexc' | 'aster'
 
 export const EXCHANGE_CONFIG: Record<ExchangeId, {
   name: string
@@ -11,7 +11,9 @@ export const EXCHANGE_CONFIG: Record<ExchangeId, {
   binance: { name: 'Binance', color: '#f3ba2f', fundingPeriodHours: 8, type: 'cex' }, // Yellow
   lighter: { name: 'Lighter', color: '#10b981', fundingPeriodHours: 8, type: 'dex' }, // Emerald
   hyperliquid: { name: 'Hyperliquid', color: '#84cc16', fundingPeriodHours: 1, type: 'dex' }, // Lime
-  bybit: { name: 'Bybit', color: '#3b82f6', fundingPeriodHours: 8, type: 'cex' }, // Blue - changed from orange to be distinct
+  bybit: { name: 'Bybit', color: '#3b82f6', fundingPeriodHours: 8, type: 'cex' }, // Blue
+  mexc: { name: 'MEXC', color: '#00b897', fundingPeriodHours: 8, type: 'cex' }, // Teal
+  aster: { name: 'Aster', color: '#a855f7', fundingPeriodHours: 8, type: 'dex' }, // Purple
 }
 
 // ============ API Response Types ============
@@ -96,6 +98,27 @@ export interface BybitTickersResponse {
   time: number
 }
 
+export interface MexcFundingRate {
+  symbol: string // e.g., "BTC_USDT"
+  fundingRate: number
+  maxFundingRate: number
+  minFundingRate: number
+  collectCycle: number // Funding period in hours
+  nextSettleTime: number // Timestamp in ms
+  timestamp: number
+}
+
+export interface AsterPremiumIndex {
+  symbol: string // e.g., "BTCUSDT"
+  markPrice: string
+  indexPrice: string
+  estimatedSettlePrice: string
+  lastFundingRate: string
+  nextFundingTime: number // Timestamp in ms
+  interestRate: string
+  time: number
+}
+
 // ============ Normalized Types ============
 
 export interface NormalizedFundingRate {
@@ -131,6 +154,8 @@ export interface FundingSpreadDB {
   lighter_rate: number
   hyperliquid_rate?: number
   bybit_rate?: number
+  mexc_rate?: number
+  aster_rate?: number
   spread_percent: number
   binance_mark_price?: number
   lighter_mark_price?: number

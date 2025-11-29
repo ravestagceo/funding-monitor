@@ -3,8 +3,10 @@ import { fetchBinanceFundingRates, getBinanceUrl } from './binance'
 import { fetchLighterFundingRates, getLighterUrl } from './lighter'
 import { fetchHyperliquidFundingRates, getHyperliquidUrl } from './hyperliquid'
 import { fetchBybitFundingRates, getBybitUrl } from './bybit'
+import { fetchMexcFundingRates, getMexcUrl } from './mexc'
+import { fetchAsterFundingRates, getAsterUrl } from './aster'
 
-export { getBinanceUrl, getLighterUrl, getHyperliquidUrl, getBybitUrl }
+export { getBinanceUrl, getLighterUrl, getHyperliquidUrl, getBybitUrl, getMexcUrl, getAsterUrl }
 
 /**
  * Fetch funding rates from all exchanges in parallel
@@ -12,11 +14,13 @@ export { getBinanceUrl, getLighterUrl, getHyperliquidUrl, getBybitUrl }
 export async function fetchAllFundingRates(): Promise<Map<ExchangeId, NormalizedFundingRate[]>> {
   const results = new Map<ExchangeId, NormalizedFundingRate[]>()
 
-  const [binanceRates, lighterRates, hyperliquidRates, bybitRates] = await Promise.allSettled([
+  const [binanceRates, lighterRates, hyperliquidRates, bybitRates, mexcRates, asterRates] = await Promise.allSettled([
     fetchBinanceFundingRates(),
     fetchLighterFundingRates(),
     fetchHyperliquidFundingRates(),
     fetchBybitFundingRates(),
+    fetchMexcFundingRates(),
+    fetchAsterFundingRates(),
   ])
 
   if (binanceRates.status === 'fulfilled') {
@@ -45,6 +49,20 @@ export async function fetchAllFundingRates(): Promise<Map<ExchangeId, Normalized
   } else {
     console.error('Failed to fetch Bybit rates:', bybitRates.reason)
     results.set('bybit', [])
+  }
+
+  if (mexcRates.status === 'fulfilled') {
+    results.set('mexc', mexcRates.value)
+  } else {
+    console.error('Failed to fetch MEXC rates:', mexcRates.reason)
+    results.set('mexc', [])
+  }
+
+  if (asterRates.status === 'fulfilled') {
+    results.set('aster', asterRates.value)
+  } else {
+    console.error('Failed to fetch Aster rates:', asterRates.reason)
+    results.set('aster', [])
   }
 
   return results
@@ -172,6 +190,10 @@ export function getExchangeUrl(exchangeId: ExchangeId, symbol: string): string {
       return getHyperliquidUrl(symbol)
     case 'bybit':
       return getBybitUrl(symbol)
+    case 'mexc':
+      return getMexcUrl(symbol)
+    case 'aster':
+      return getAsterUrl(symbol)
     default:
       return '#'
   }

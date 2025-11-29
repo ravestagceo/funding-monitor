@@ -257,7 +257,6 @@ export default function MatrixPage() {
                           <ArrowUpDown className="h-4 w-4" />
                         </button>
                       </TableHead>
-                      <TableHead>Strategy</TableHead>
                       <TableHead>Annual APR</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -333,17 +332,6 @@ export default function MatrixPage() {
                         </TableCell>
                         <TableCell className={`font-mono font-semibold ${getSpreadColor(spread.bestSpread.spreadHourly)}`}>
                           {formatSpread(spread.bestSpread.spreadHourly)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-xs">
-                            <span className="text-green-400 font-medium">
-                              L:{EXCHANGE_CONFIG[spread.bestSpread.longExchange]?.name.substring(0, 3)}
-                            </span>
-                            <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-red-400 font-medium">
-                              S:{EXCHANGE_CONFIG[spread.bestSpread.shortExchange]?.name.substring(0, 3)}
-                            </span>
-                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={getBadgeVariant(spread.bestSpread.spreadAnnual)}>
