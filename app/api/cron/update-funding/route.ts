@@ -123,6 +123,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Cleanup old data (keep only last 7 days)
+    // This runs on every cron execution to prevent database bloat
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+    const { error: cleanupRatesError } = await supabase
+      .from('funding_rates')
+      .delete()
+      .lt('created_at', sevenDaysAgo.toISOString())
+
+    if (cleanupRatesError) {
+      console.error('Error cleaning up old funding rates:', cleanupRatesError)
+    }
+
+    const { error: cleanupSpreadsError } = await supabase
+      .from('funding_spreads')
+      .delete()
+      .lt('created_at', sevenDaysAgo.toISOString())
+
+    if (cleanupSpreadsError) {
+      console.error('Error cleaning up old funding spreads:', cleanupSpreadsError)
+    }
+
     // Calculate stats
     const stats: Record<string, number> = {}
     allRates.forEach((rates, exchange) => {
