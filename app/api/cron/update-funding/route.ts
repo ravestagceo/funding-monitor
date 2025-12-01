@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
 import { fetchAllFundingRates } from '@/lib/exchanges'
+import { tryAcquireLock, releaseLock } from '@/lib/cron-lock'
 import type { FundingRateDB, FundingSpreadDB, ExchangeId } from '@/lib/types'
 
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
+
+const CRON_LOCK_KEY = 'update-funding-rates'
 
 export async function GET(request: NextRequest) {
   // Verify cron secret
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Try to acquire lock to prevent concurrent executions
+  if (!tryAcquireLock(CRON_LOCK_KEY)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Another instance is already running',
+        skipped: true,
+      },
+      { status: 409 }
+    )
   }
 
   try {
@@ -145,5 +160,8 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     )
+  } finally {
+    // Always release the lock
+    releaseLock(CRON_LOCK_KEY)
   }
 }

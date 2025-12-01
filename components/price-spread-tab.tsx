@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ComposedChart } from 'recharts'
 import { RefreshCw, DollarSign, Percent } from 'lucide-react'
@@ -20,7 +20,10 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
   const [data, setData] = useState<PriceSpreadHistoryResponse | null>(null)
 
   useEffect(() => {
-    fetchHistory()
+    // Only fetch if all parameters are available
+    if (symbol && exchange1 && exchange2 && hours) {
+      fetchHistory()
+    }
   }, [symbol, exchange1, exchange2, hours])
 
   const fetchHistory = async () => {
@@ -53,19 +56,22 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
     return `${value >= 0 ? '+' : ''}${value.toFixed(4)}%`
   }
 
-  const chartData = data?.history.map((point) => ({
-    time: formatTime(point.timestamp),
-    exchange1: point.exchange1_price,
-    exchange2: point.exchange2_price,
-    spreadAbsolute: point.spread_absolute,
-    spreadPercent: point.spread_percent,
-  })) || []
+  // Memoize chart data to prevent unnecessary recalculations
+  const chartData = useMemo(() => {
+    return data?.history.map((point) => ({
+      time: formatTime(point.timestamp),
+      exchange1: point.exchange1_price,
+      exchange2: point.exchange2_price,
+      spreadAbsolute: point.spread_absolute,
+      spreadPercent: point.spread_percent,
+    })) || []
+  }, [data?.history])
 
   const ex1Config = EXCHANGE_CONFIG[exchange1]
   const ex2Config = EXCHANGE_CONFIG[exchange2]
 
   // Calculate dynamic Y-axis domain for better zoom on small spreads
-  const calculateYDomain = () => {
+  const yDomain = useMemo(() => {
     if (!chartData.length) return undefined
 
     const allPrices = chartData.flatMap(d => [d.exchange1, d.exchange2])
@@ -77,7 +83,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
     const padding = Math.max(range * 0.1, minPrice * 0.005)
 
     return [minPrice - padding, maxPrice + padding]
-  }
+  }, [chartData])
 
   return (
     <div className="space-y-6">
@@ -125,7 +131,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
           <div className="bg-card border border-border rounded-lg p-4">
             <h3 className="text-sm font-semibold mb-4 text-card-foreground">Mark Price Comparison</h3>
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={chartData} key={`${exchange1}-${exchange2}`}>
+              <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
                   dataKey="time"
@@ -136,7 +142,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                   stroke="hsl(var(--muted-foreground))"
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) => `$${value.toFixed(4)}`}
-                  domain={calculateYDomain()}
+                  domain={yDomain}
                 />
                 <Tooltip
                   contentStyle={{
@@ -189,6 +195,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                   strokeWidth={2}
                   dot={false}
                   name="exchange1"
+                  isAnimationActive={false}
                 />
                 <Line
                   type="monotone"
@@ -197,6 +204,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                   strokeWidth={2}
                   dot={false}
                   name="exchange2"
+                  isAnimationActive={false}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -233,6 +241,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                   stroke="hsl(var(--primary))"
                   fill="hsl(var(--primary) / 0.2)"
                   strokeWidth={2}
+                  isAnimationActive={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -269,6 +278,7 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                   stroke="hsl(var(--chart-2))"
                   fill="hsl(var(--chart-2) / 0.2)"
                   strokeWidth={2}
+                  isAnimationActive={false}
                 />
               </AreaChart>
             </ResponsiveContainer>

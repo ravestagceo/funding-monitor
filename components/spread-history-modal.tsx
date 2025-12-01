@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -100,12 +100,15 @@ export function SpreadHistoryModal({
     return 'Low Stability'
   }
 
-  const chartData = data?.history.map((point) => ({
-    time: formatTime(point.timestamp),
-    spread: point.spread_percent,
-    exchange1: point.exchange1_rate * 100,
-    exchange2: point.exchange2_rate * 100,
-  })) || []
+  // Memoize chart data to prevent unnecessary recalculations and re-renders
+  const chartData = useMemo(() => {
+    return data?.history.map((point) => ({
+      time: formatTime(point.timestamp),
+      spread: point.spread_percent,
+      exchange1: point.exchange1_rate * 100,
+      exchange2: point.exchange2_rate * 100,
+    })) || []
+  }, [data?.history])
 
   // Get exchange configs for colors and names
   const ex1Config = EXCHANGE_CONFIG[selectedExchange1]
@@ -260,6 +263,7 @@ export function SpreadHistoryModal({
                       stroke="hsl(var(--primary))"
                       fill="hsl(var(--primary) / 0.2)"
                       strokeWidth={2}
+                      isAnimationActive={false}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -269,7 +273,7 @@ export function SpreadHistoryModal({
               <div className="bg-card border border-border rounded-lg p-4">
                 <h3 className="text-sm font-semibold mb-4 text-card-foreground">Funding Rates Comparison</h3>
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={chartData} key={`${selectedExchange1}-${selectedExchange2}`}>
+                  <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis
                       dataKey="time"
@@ -306,6 +310,7 @@ export function SpreadHistoryModal({
                       strokeWidth={2}
                       dot={false}
                       name="exchange1"
+                      isAnimationActive={false}
                     />
                     <Line
                       type="monotone"
@@ -314,6 +319,7 @@ export function SpreadHistoryModal({
                       strokeWidth={2}
                       dot={false}
                       name="exchange2"
+                      isAnimationActive={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
