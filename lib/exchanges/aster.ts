@@ -87,5 +87,5 @@ function normalizeSymbol(symbol: string): string | null {
 export function getAsterUrl(symbol: string): string {
   // Aster uses format like BTCUSDT
   const asterSymbol = symbol.includes('USDT') ? symbol : `${symbol}USDT`
-  return `https://app.asterdex.com/trade/${asterSymbol}`
+  return `https://www.asterdex.com/en/trade/pro/futures/${asterSymbol}`
 }
