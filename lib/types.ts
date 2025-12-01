@@ -13,7 +13,7 @@ export const EXCHANGE_CONFIG: Record<ExchangeId, {
   hyperliquid: { name: 'Hyperliquid', color: '#84cc16', fundingPeriodHours: 1, type: 'dex' }, // Lime
   bybit: { name: 'Bybit', color: '#3b82f6', fundingPeriodHours: 8, type: 'cex' }, // Blue
   mexc: { name: 'MEXC', color: '#00b897', fundingPeriodHours: 8, type: 'cex' }, // Teal
-  aster: { name: 'Aster', color: '#a855f7', fundingPeriodHours: 8, type: 'dex' }, // Purple
+  aster: { name: 'Aster', color: '#a855f7', fundingPeriodHours: 1, type: 'dex' }, // Purple
 }
 
 // ============ API Response Types ============

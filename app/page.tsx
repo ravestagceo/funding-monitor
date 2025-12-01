@@ -15,6 +15,7 @@ import {
 import { SpreadHistoryModal } from '@/components/spread-history-modal'
 import type { MultiExchangeSpread, ExchangeId } from '@/lib/types'
 import { EXCHANGE_CONFIG } from '@/lib/types'
+import { getExchangeUrl } from '@/lib/exchanges'
 import { ArrowUpDown, RefreshCw, TrendingUp, Clock, ExternalLink, Activity } from 'lucide-react'
 
 export default function Home() {
@@ -101,19 +102,6 @@ export default function Home() {
     } else {
       setSortBy(column)
       setSortOrder('desc')
-    }
-  }
-
-  const getExchangeUrl = (exchange: ExchangeId, symbol: string) => {
-    switch (exchange) {
-      case 'binance':
-        return `https://www.binance.com/en/futures/${symbol}USDT`
-      case 'bybit':
-        return `https://www.bybit.com/trade/usdt/${symbol}USDT`
-      case 'hyperliquid':
-        return `https://app.hyperliquid.xyz/trade/${symbol}`
-      case 'lighter':
-        return `https://app.lighter.xyz/trade/${symbol}`
     }
   }
 
@@ -284,25 +272,13 @@ export default function Home() {
                           <ArrowUpDown className="h-4 w-4" />
                         </button>
                       </TableHead>
-                      <TableHead className="text-center">
+                      <TableHead colSpan={2}>
                         <div className="text-green-400 font-semibold">Long Exchange</div>
                       </TableHead>
-                      <TableHead className="text-center">
-                        <div className="text-green-400 font-semibold flex items-center justify-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Funding
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-center">
+                      <TableHead colSpan={2}>
                         <div className="text-red-400 font-semibold">Short Exchange</div>
                       </TableHead>
-                      <TableHead className="text-center">
-                        <div className="text-red-400 font-semibold flex items-center justify-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Funding
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-center">
+                      <TableHead>
                         <div className="font-semibold">Price Spread</div>
                       </TableHead>
                       <TableHead>
@@ -322,7 +298,6 @@ export default function Home() {
                           Stability
                         </div>
                       </TableHead>
-                      <TableHead className="text-right">Mark Price</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -352,59 +327,65 @@ export default function Home() {
                         </TableCell>
 
                         {/* Long Exchange Rate */}
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
+                        <TableCell colSpan={2}>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="text-xs text-muted-foreground font-semibold">{EXCHANGE_CONFIG[longExchange].name}</div>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              {longRate?.markPrice
+                                ? `$${longRate.markPrice.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 6,
+                                  })}`
+                                : '-'}
+                            </div>
                             <a
                               href={getExchangeUrl(longExchange, spread.symbol)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 hover:underline bg-green-500/20 px-2 py-1 rounded"
+                              className="inline-flex items-center gap-1 hover:underline w-fit"
                               title={`LONG on ${EXCHANGE_CONFIG[longExchange].name}`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EXCHANGE_CONFIG[longExchange].color }} />
-                              <span className="font-mono text-sm text-green-400">{formatRate(longRate?.hourlyRate || 0)}</span>
+                              <span className="font-mono text-xs text-green-400 font-semibold">{formatRate(longRate?.hourlyRate || 0)}</span>
                               <ExternalLink className="h-3 w-3 opacity-50" />
                             </a>
-                            <div className="text-xs text-muted-foreground">{EXCHANGE_CONFIG[longExchange].name}</div>
-                          </div>
-                        </TableCell>
-
-                        {/* Long Countdown */}
-                        <TableCell className="text-center">
-                          <div className="font-mono text-xs text-green-400">
-                            {formatCountdown(longRate?.nextFundingTime)}
+                            <div className="font-mono text-xs text-green-400/70">
+                              {formatCountdown(longRate?.nextFundingTime)}
+                            </div>
                           </div>
                         </TableCell>
 
                         {/* Short Exchange Rate */}
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
+                        <TableCell colSpan={2}>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="text-xs text-muted-foreground font-semibold">{EXCHANGE_CONFIG[shortExchange].name}</div>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              {shortRate?.markPrice
+                                ? `$${shortRate.markPrice.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 6,
+                                  })}`
+                                : '-'}
+                            </div>
                             <a
                               href={getExchangeUrl(shortExchange, spread.symbol)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 hover:underline bg-red-500/20 px-2 py-1 rounded"
+                              className="inline-flex items-center gap-1 hover:underline w-fit"
                               title={`SHORT on ${EXCHANGE_CONFIG[shortExchange].name}`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EXCHANGE_CONFIG[shortExchange].color }} />
-                              <span className="font-mono text-sm text-red-400">{formatRate(shortRate?.hourlyRate || 0)}</span>
+                              <span className="font-mono text-xs text-red-400 font-semibold">{formatRate(shortRate?.hourlyRate || 0)}</span>
                               <ExternalLink className="h-3 w-3 opacity-50" />
                             </a>
-                            <div className="text-xs text-muted-foreground">{EXCHANGE_CONFIG[shortExchange].name}</div>
-                          </div>
-                        </TableCell>
-
-                        {/* Short Countdown */}
-                        <TableCell className="text-center">
-                          <div className="font-mono text-xs text-red-400">
-                            {formatCountdown(shortRate?.nextFundingTime)}
+                            <div className="font-mono text-xs text-red-400/70">
+                              {formatCountdown(shortRate?.nextFundingTime)}
+                            </div>
                           </div>
                         </TableCell>
 
                         {/* Price Spread */}
-                        <TableCell className="text-center">
+                        <TableCell>
                           {longRate?.markPrice && shortRate?.markPrice ? (
                             <div className="font-mono text-xs">
                               {(() => {
@@ -438,14 +419,6 @@ export default function Home() {
                           <Badge variant={stability.variant} title={stability.tooltip}>
                             {stability.label}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                          {longRate?.markPrice
-                            ? `$${longRate.markPrice.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 8,
-                              })}`
-                            : '-'}
                         </TableCell>
                       </TableRow>
                       )

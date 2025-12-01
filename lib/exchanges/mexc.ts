@@ -37,7 +37,15 @@ export async function fetchMexcFundingRates(): Promise<NormalizedFundingRate[]> 
           continue
         }
 
-        const data: MexcFundingRate = await response.json()
+        const result = await response.json()
+
+        // MEXC API wraps response in {success, code, data}
+        if (!result.success || !result.data) {
+          console.warn(`MEXC invalid response for ${symbol}`)
+          continue
+        }
+
+        const data: MexcFundingRate = result.data
 
         // Skip if no valid data
         if (!data.fundingRate || data.fundingRate === 0) {
