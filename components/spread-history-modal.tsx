@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts'
 import { RefreshCw, TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react'
 import type { SpreadHistoryResponse, ExchangeId } from '@/lib/types'
 import { EXCHANGE_CONFIG } from '@/lib/types'
@@ -255,8 +255,15 @@ export function SpreadHistoryModal({
                         borderRadius: '6px',
                         color: 'hsl(var(--popover-foreground))',
                       }}
-                      formatter={(value: number) => [`${value.toFixed(4)}%`, 'Spread']}
+                      formatter={(value: number) => {
+                        const isProfit = value > 0
+                        return [
+                          `${value >= 0 ? '+' : ''}${value.toFixed(4)}%`,
+                          isProfit ? 'Spread (Profitable)' : 'Spread (Unprofitable)'
+                        ]
+                      }}
                     />
+                    <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                     <Area
                       type="monotone"
                       dataKey="spread"
@@ -336,11 +343,17 @@ export function SpreadHistoryModal({
                   <div className="flex-1">
                     <div className="font-semibold text-foreground mb-1">Profitability Analysis</div>
                     <div className="text-sm text-muted-foreground">
-                      Spread was profitable (&gt;0.01%) for{' '}
+                      For a <span className="font-bold">Long {ex1Config.name} + Short {ex2Config.name}</span> strategy:{' '}
+                      Spread was <span className="font-bold text-green-400">profitable</span> (positive &gt;0.01%) for{' '}
                       <span className="font-bold text-foreground">
                         {data.statistics.profitableMinutes} out of {data.statistics.totalMinutes}
                       </span>{' '}
                       data points ({data.statistics.stabilityScore.toFixed(1)}% of the time).
+                      {data.statistics.avgSpread < 0 && (
+                        <span className="block mt-2 text-amber-400">
+                          ⚠ Average spread is negative - {ex2Config.name} funding rate is typically higher!
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

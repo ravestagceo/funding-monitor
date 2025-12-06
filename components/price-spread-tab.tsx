@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ComposedChart } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ComposedChart, ReferenceLine } from 'recharts'
 import { RefreshCw, DollarSign, Percent } from 'lucide-react'
 import type { PriceSpreadHistoryResponse, ExchangeId } from '@/lib/types'
 import { EXCHANGE_CONFIG } from '@/lib/types'
@@ -233,8 +233,15 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                     borderRadius: '6px',
                     color: 'hsl(var(--popover-foreground))',
                   }}
-                  formatter={(value: number) => [formatPercent(value), 'Spread %']}
+                  formatter={(value: number) => {
+                    const isGoodEntry = value < 0
+                    return [
+                      formatPercent(value),
+                      isGoodEntry ? 'Spread % (Good Entry)' : 'Spread % (Poor Entry)'
+                    ]
+                  }}
                 />
+                <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                 <Area
                   type="monotone"
                   dataKey="spreadPercent"
@@ -270,8 +277,15 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
                     borderRadius: '6px',
                     color: 'hsl(var(--popover-foreground))',
                   }}
-                  formatter={(value: number) => [`$${value.toFixed(4)}`, 'Spread']}
+                  formatter={(value: number) => {
+                    const isGoodEntry = value < 0
+                    return [
+                      `$${value.toFixed(4)}`,
+                      isGoodEntry ? 'Spread (Good Entry)' : 'Spread (Poor Entry)'
+                    ]
+                  }}
                 />
+                <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                 <Area
                   type="monotone"
                   dataKey="spreadAbsolute"
@@ -286,12 +300,27 @@ export function PriceSpreadTab({ symbol, exchange1, exchange2, hours, onRefresh 
 
           {/* Info Box */}
           <div className="bg-accent/30 border border-border rounded-lg p-4">
-            <div className="text-sm text-muted-foreground">
-              <strong className="text-foreground">Price Spread:</strong> Shows the difference between mark prices on{' '}
-              <span style={{ color: ex1Config.color }} className="font-semibold">{ex1Config.name}</span> and{' '}
-              <span style={{ color: ex2Config.color }} className="font-semibold">{ex2Config.name}</span>.
-              Positive spread means {ex1Config.name} price is higher.
-              Based on {data.statistics.totalPoints} data points over the last {hours} hours.
+            <div className="text-sm text-muted-foreground space-y-2">
+              <div>
+                <strong className="text-foreground">Price Spread Interpretation:</strong> Shows the difference between mark prices on{' '}
+                <span style={{ color: ex1Config.color }} className="font-semibold">{ex1Config.name}</span> and{' '}
+                <span style={{ color: ex2Config.color }} className="font-semibold">{ex2Config.name}</span>.
+              </div>
+              <div className="pl-4 border-l-2 border-border">
+                <div className="text-green-400 font-semibold">✓ Good Entry (Negative Spread):</div>
+                <div className="text-xs">
+                  {ex1Config.name} price {'<'} {ex2Config.name} price → Buy cheaper, sell higher → Potential profit on convergence
+                </div>
+              </div>
+              <div className="pl-4 border-l-2 border-border">
+                <div className="text-red-400 font-semibold">✗ Poor Entry (Positive Spread):</div>
+                <div className="text-xs">
+                  {ex1Config.name} price {'>'} {ex2Config.name} price → Buy expensive, sell cheap → Potential loss on convergence
+                </div>
+              </div>
+              <div className="text-xs opacity-75">
+                Based on {data.statistics.totalPoints} data points over the last {hours} hours.
+              </div>
             </div>
           </div>
         </>

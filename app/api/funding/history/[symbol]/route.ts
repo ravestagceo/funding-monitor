@@ -87,10 +87,13 @@ export async function GET(
     }
 
     // Transform data - rates in DB are already hourly, just need to convert to percent
+    // Spread = Exchange1 - Exchange2 (preserving sign for profit/loss interpretation)
+    // Positive spread = Exchange1 > Exchange2 (profitable for Long Ex1 + Short Ex2)
+    // Negative spread = Exchange1 < Exchange2 (unprofitable for Long Ex1 + Short Ex2)
     const history: SpreadHistoryPoint[] = validData.map((row) => {
       const ex1Rate = (row as any)[ex1Column] as number  // Already hourly
       const ex2Rate = (row as any)[ex2Column] as number  // Already hourly
-      const spreadPercent = Math.abs(ex1Rate - ex2Rate) * 100
+      const spreadPercent = (ex1Rate - ex2Rate) * 100  // Keep the sign!
 
       return {
         timestamp: (row as any).created_at,
@@ -122,9 +125,10 @@ export async function GET(
     const volatility = Math.sqrt(variance)
 
     // Calculate stability score (% of time spread was profitable > 0.01%)
+    // Profitable = positive spread (Exchange1 > Exchange2)
     const profitableThreshold = 0.01
     const profitableMinutes = spreads.filter(
-      (s) => Math.abs(s) > profitableThreshold
+      (s) => s > profitableThreshold
     ).length
     const stabilityScore = (profitableMinutes / spreads.length) * 100
 
