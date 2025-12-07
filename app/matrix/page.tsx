@@ -26,6 +26,7 @@ export default function MatrixPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'symbol' | 'spread'>('spread')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [sortMode, setSortMode] = useState<'absolute' | 'profitability'>('absolute')
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [stats, setStats] = useState<Record<string, number>>({})
   const [selectedSymbol, setSelectedSymbol] = useState<string>('')
@@ -70,13 +71,22 @@ export default function MatrixPage() {
           ? a.symbol.localeCompare(b.symbol)
           : b.symbol.localeCompare(a.symbol)
       }
-      return sortOrder === 'asc'
-        ? a.bestSpread.spreadHourly - b.bestSpread.spreadHourly
-        : b.bestSpread.spreadHourly - a.bestSpread.spreadHourly
+      // Spread sorting
+      if (sortMode === 'absolute') {
+        // Absolute value sorting (default)
+        const aValue = Math.abs(a.bestSpread.spreadHourly)
+        const bValue = Math.abs(b.bestSpread.spreadHourly)
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
+      } else {
+        // Profitability sorting (most negative first)
+        return sortOrder === 'asc'
+          ? a.bestSpread.spreadHourly - b.bestSpread.spreadHourly
+          : b.bestSpread.spreadHourly - a.bestSpread.spreadHourly
+      }
     })
 
     setFilteredSpreads(filtered)
-  }, [searchTerm, spreads, sortBy, sortOrder])
+  }, [searchTerm, spreads, sortBy, sortOrder, sortMode])
 
   const handleSort = (column: 'symbol' | 'spread') => {
     if (sortBy === column) {
@@ -203,6 +213,17 @@ export default function MatrixPage() {
               </div>
 
               <div className="flex gap-2">
+                <button
+                  onClick={() => setSortMode(sortMode === 'absolute' ? 'profitability' : 'absolute')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    sortMode === 'absolute'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary hover:bg-secondary/80'
+                  }`}
+                  title={sortMode === 'absolute' ? 'Switch to profitability sorting' : 'Switch to absolute value sorting'}
+                >
+                  {sortMode === 'absolute' ? 'Absolute' : 'Profitability'}
+                </button>
                 <Input
                   placeholder="Search symbol..."
                   value={searchTerm}

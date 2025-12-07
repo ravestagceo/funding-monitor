@@ -25,6 +25,7 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'symbol' | 'spread'>('spread')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [sortMode, setSortMode] = useState<'absolute' | 'profitability'>('absolute')
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [selectedSymbol, setSelectedSymbol] = useState<string>('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -79,8 +80,14 @@ export default function Home() {
           bValue = b.symbol
           break
         case 'spread':
-          aValue = Math.abs(a.bestSpread.spreadHourly)
-          bValue = Math.abs(b.bestSpread.spreadHourly)
+          if (sortMode === 'absolute') {
+            aValue = Math.abs(a.bestSpread.spreadHourly)
+            bValue = Math.abs(b.bestSpread.spreadHourly)
+          } else {
+            // Profitability mode: most negative (profitable) first
+            aValue = a.bestSpread.spreadHourly
+            bValue = b.bestSpread.spreadHourly
+          }
           break
       }
 
@@ -94,7 +101,7 @@ export default function Home() {
     })
 
     setFilteredSpreads(sorted)
-  }, [sortBy, sortOrder])
+  }, [sortBy, sortOrder, sortMode])
 
   const handleSort = (column: 'symbol' | 'spread') => {
     if (sortBy === column) {
@@ -237,6 +244,17 @@ export default function Home() {
               </div>
 
               <div className="flex gap-2">
+                <button
+                  onClick={() => setSortMode(sortMode === 'absolute' ? 'profitability' : 'absolute')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    sortMode === 'absolute'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary hover:bg-secondary/80'
+                  }`}
+                  title={sortMode === 'absolute' ? 'Switch to profitability sorting' : 'Switch to absolute value sorting'}
+                >
+                  {sortMode === 'absolute' ? 'Absolute' : 'Profitability'}
+                </button>
                 <Input
                   placeholder="Search symbol..."
                   value={searchTerm}
