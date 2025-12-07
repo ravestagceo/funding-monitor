@@ -26,7 +26,6 @@ export default function MatrixPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'symbol' | 'spread'>('spread')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [sortMode, setSortMode] = useState<'absolute' | 'profitability'>('absolute')
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [stats, setStats] = useState<Record<string, number>>({})
   const [selectedSymbol, setSelectedSymbol] = useState<string>('')
@@ -71,22 +70,14 @@ export default function MatrixPage() {
           ? a.symbol.localeCompare(b.symbol)
           : b.symbol.localeCompare(a.symbol)
       }
-      // Spread sorting
-      if (sortMode === 'absolute') {
-        // Absolute value sorting (default)
-        const aValue = Math.abs(a.bestSpread.spreadHourly)
-        const bValue = Math.abs(b.bestSpread.spreadHourly)
-        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
-      } else {
-        // Profitability sorting (most negative first)
-        return sortOrder === 'asc'
-          ? a.bestSpread.spreadHourly - b.bestSpread.spreadHourly
-          : b.bestSpread.spreadHourly - a.bestSpread.spreadHourly
-      }
+      // Spread sorting - spread is always positive now
+      const aValue = a.bestSpread.spreadHourly
+      const bValue = b.bestSpread.spreadHourly
+      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
     })
 
     setFilteredSpreads(filtered)
-  }, [searchTerm, spreads, sortBy, sortOrder, sortMode])
+  }, [searchTerm, spreads, sortBy, sortOrder])
 
   const handleSort = (column: 'symbol' | 'spread') => {
     if (sortBy === column) {
@@ -113,14 +104,14 @@ export default function MatrixPage() {
   }
 
   const getSpreadColor = (spread: number) => {
-    // Negative spread = profitable, positive = unprofitable
-    if (spread < -0.05) return 'text-green-400 font-bold'
-    if (spread < -0.02) return 'text-emerald-400 font-semibold'
-    if (spread < -0.01) return 'text-teal-400'
-    if (spread > 0.05) return 'text-red-400 font-bold'
-    if (spread > 0.02) return 'text-orange-400 font-semibold'
-    if (spread > 0.01) return 'text-yellow-400'
-    return 'text-gray-400'
+    // Spread is always positive (shortRate - longRate)
+    // Higher spread = more profitable
+    if (spread > 0.05) return 'text-green-400 font-bold'
+    if (spread > 0.02) return 'text-emerald-400 font-semibold'
+    if (spread > 0.01) return 'text-teal-400'
+    if (spread > 0.005) return 'text-yellow-400'
+    if (spread > 0) return 'text-gray-400'
+    return 'text-red-400' // Should not happen with correct logic
   }
 
   const getExchangeUrl = (exchange: ExchangeId, symbol: string) => {
@@ -213,17 +204,6 @@ export default function MatrixPage() {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => setSortMode(sortMode === 'absolute' ? 'profitability' : 'absolute')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    sortMode === 'absolute'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary hover:bg-secondary/80'
-                  }`}
-                  title={sortMode === 'absolute' ? 'Switch to profitability sorting' : 'Switch to absolute value sorting'}
-                >
-                  {sortMode === 'absolute' ? 'Absolute' : 'Profitability'}
-                </button>
                 <Input
                   placeholder="Search symbol..."
                   value={searchTerm}

@@ -87,14 +87,18 @@ export async function GET(
     }
 
     // Transform data - rates in DB are already hourly, just need to convert to percent
-    // Spread = Exchange1 - Exchange2 (preserving sign for profit/loss interpretation)
-    // CORRECTED LOGIC:
-    // Negative spread = Exchange1 < Exchange2 (PROFITABLE for Long Ex1 + Short Ex2)
-    // Positive spread = Exchange1 > Exchange2 (UNPROFITABLE for Long Ex1 + Short Ex2)
+    // CORRECT FUNDING ARBITRAGE LOGIC:
+    // - LONG on exchange with LOWER funding rate
+    // - SHORT on exchange with HIGHER funding rate
+    // - Spread = HigherRate - LowerRate (ALWAYS POSITIVE for profit)
     const history: SpreadHistoryPoint[] = validData.map((row) => {
       const ex1Rate = (row as any)[ex1Column] as number  // Already hourly
       const ex2Rate = (row as any)[ex2Column] as number  // Already hourly
-      const spreadPercent = (ex1Rate - ex2Rate) * 100  // Keep the sign!
+
+      // Always calculate: higher - lower (positive spread)
+      // If ex1 > ex2: Long ex2, Short ex1, spread = ex1 - ex2
+      // If ex2 > ex1: Long ex1, Short ex2, spread = ex2 - ex1
+      const spreadPercent = Math.abs(ex1Rate - ex2Rate) * 100
 
       return {
         timestamp: (row as any).created_at,
@@ -125,11 +129,11 @@ export async function GET(
       spreads.length
     const volatility = Math.sqrt(variance)
 
-    // Calculate stability score (% of time spread was profitable < -0.01%)
-    // Profitable = NEGATIVE spread (Exchange1 < Exchange2)
-    const profitableThreshold = -0.01
+    // Calculate stability score (% of time spread was profitable > 0.01%)
+    // Spread is always positive now, higher = more profitable
+    const profitableThreshold = 0.01
     const profitableMinutes = spreads.filter(
-      (s) => s < profitableThreshold
+      (s) => s > profitableThreshold
     ).length
     const stabilityScore = (profitableMinutes / spreads.length) * 100
 

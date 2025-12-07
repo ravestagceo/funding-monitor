@@ -25,7 +25,6 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'symbol' | 'spread'>('spread')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [sortMode, setSortMode] = useState<'absolute' | 'profitability'>('absolute')
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [selectedSymbol, setSelectedSymbol] = useState<string>('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -80,14 +79,9 @@ export default function Home() {
           bValue = b.symbol
           break
         case 'spread':
-          if (sortMode === 'absolute') {
-            aValue = Math.abs(a.bestSpread.spreadHourly)
-            bValue = Math.abs(b.bestSpread.spreadHourly)
-          } else {
-            // Profitability mode: most negative (profitable) first
-            aValue = a.bestSpread.spreadHourly
-            bValue = b.bestSpread.spreadHourly
-          }
+          // Spread is always positive now, both modes sort the same way
+          aValue = a.bestSpread.spreadHourly
+          bValue = b.bestSpread.spreadHourly
           break
       }
 
@@ -101,7 +95,7 @@ export default function Home() {
     })
 
     setFilteredSpreads(sorted)
-  }, [sortBy, sortOrder, sortMode])
+  }, [sortBy, sortOrder])
 
   const handleSort = (column: 'symbol' | 'spread') => {
     if (sortBy === column) {
@@ -149,14 +143,14 @@ export default function Home() {
   }
 
   const getSpreadColor = (spread: number) => {
-    // Negative spread = profitable, positive = unprofitable
-    if (spread < -0.05) return 'text-green-400 font-bold'
-    if (spread < -0.02) return 'text-emerald-400 font-semibold'
-    if (spread < -0.01) return 'text-teal-400'
-    if (spread > 0.05) return 'text-red-400 font-bold'
-    if (spread > 0.02) return 'text-orange-400 font-semibold'
-    if (spread > 0.01) return 'text-yellow-400'
-    return 'text-gray-400'
+    // Spread is always positive (shortRate - longRate)
+    // Higher spread = more profitable
+    if (spread > 0.05) return 'text-green-400 font-bold'
+    if (spread > 0.02) return 'text-emerald-400 font-semibold'
+    if (spread > 0.01) return 'text-teal-400'
+    if (spread > 0.005) return 'text-yellow-400'
+    if (spread > 0) return 'text-gray-400'
+    return 'text-red-400' // Should not happen with correct logic
   }
 
   const getTokenIcon = (symbol: string) => {
@@ -197,11 +191,11 @@ export default function Home() {
   }
 
   const getStabilityBadge = (spreadHourly: number) => {
-    // Negative spread = profitable
-    if (spreadHourly < -0.05) return { variant: 'success' as const, label: 'High', tooltip: 'Strong profitable spread' }
-    if (spreadHourly < -0.02) return { variant: 'secondary' as const, label: 'Med', tooltip: 'Moderate profitable spread' }
-    if (spreadHourly < -0.01) return { variant: 'outline' as const, label: 'Low', tooltip: 'Minimal profitable spread' }
-    return { variant: 'destructive' as const, label: 'Unprofitable', tooltip: 'Not profitable - positive spread' }
+    // Higher positive spread = more profitable
+    if (spreadHourly > 0.05) return { variant: 'success' as const, label: 'High', tooltip: 'Strong profitable spread' }
+    if (spreadHourly > 0.02) return { variant: 'secondary' as const, label: 'Med', tooltip: 'Moderate profitable spread' }
+    if (spreadHourly > 0.01) return { variant: 'outline' as const, label: 'Low', tooltip: 'Minimal profitable spread' }
+    return { variant: 'destructive' as const, label: 'Very Low', tooltip: 'Very low spread - barely profitable' }
   }
 
   const handleRowClick = (spread: MultiExchangeSpread) => {
@@ -244,17 +238,6 @@ export default function Home() {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => setSortMode(sortMode === 'absolute' ? 'profitability' : 'absolute')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    sortMode === 'absolute'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary hover:bg-secondary/80'
-                  }`}
-                  title={sortMode === 'absolute' ? 'Switch to profitability sorting' : 'Switch to absolute value sorting'}
-                >
-                  {sortMode === 'absolute' ? 'Absolute' : 'Profitability'}
-                </button>
                 <Input
                   placeholder="Search symbol..."
                   value={searchTerm}

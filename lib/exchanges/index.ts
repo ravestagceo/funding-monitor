@@ -127,12 +127,18 @@ export function buildMultiExchangeSpreads(
 
 /**
  * Find the best spread opportunity between all exchange pairs
- * Returns the pair with highest absolute hourly spread
+ * Returns the pair with highest profit potential
  *
- * LOGIC: For Long Ex1 + Short Ex2 strategy:
- * - Spread = Ex1_rate - Ex2_rate (PRESERVING SIGN!)
- * - Negative spread = PROFITABLE (Ex1 < Ex2, we receive more from long than pay for short)
- * - Positive spread = UNPROFITABLE (Ex1 > Ex2, we pay more for short than receive from long)
+ * CORRECT FUNDING ARBITRAGE LOGIC:
+ * - LONG on exchange with LOWER funding rate (especially negative)
+ * - SHORT on exchange with HIGHER funding rate (especially positive)
+ * - Spread = ShortRate - LongRate (ALWAYS POSITIVE for profit!)
+ *
+ * Example:
+ * - Exchange A: +0.2255% (high positive)
+ * - Exchange B: -0.0095% (low negative)
+ * - Strategy: LONG B, SHORT A
+ * - Spread = 0.2255% - (-0.0095%) = 0.2350% profit
  */
 function findBestSpread(
   exchangeRates: Map<ExchangeId, NormalizedFundingRate>
@@ -141,29 +147,41 @@ function findBestSpread(
   if (exchanges.length < 2) return null
 
   let bestSpread: MultiExchangeSpread['bestSpread'] | null = null
-  let maxAbsSpread = 0
+  let maxSpread = 0
 
   // Compare all pairs
   for (let i = 0; i < exchanges.length; i++) {
     for (let j = i + 1; j < exchanges.length; j++) {
-      const [exchange1, rate1] = exchanges[i]
-      const [exchange2, rate2] = exchanges[j]
+      const [exchangeA, rateA] = exchanges[i]
+      const [exchangeB, rateB] = exchanges[j]
 
-      // Calculate spread: rate1 - rate2 (KEEP THE SIGN!)
-      const spreadHourly = (rate1.hourlyRate - rate2.hourlyRate) * 100
-      const absSpread = Math.abs(spreadHourly)
+      // Try both combinations to find the best profit
+      // Option 1: Long A, Short B
+      const spreadAB = (rateB.hourlyRate - rateA.hourlyRate) * 100
 
-      if (absSpread > maxAbsSpread) {
-        maxAbsSpread = absSpread
+      // Option 2: Long B, Short A
+      const spreadBA = (rateA.hourlyRate - rateB.hourlyRate) * 100
 
-        // Always Long on exchange1, Short on exchange2
-        // The spread sign tells us if it's profitable
+      // Pick the combination with higher spread
+      if (spreadAB > maxSpread) {
+        maxSpread = spreadAB
         bestSpread = {
-          longExchange: exchange1,
-          shortExchange: exchange2,
-          spreadHourly: spreadHourly,  // KEEP THE SIGN!
-          spreadDaily: spreadHourly * 24,
-          spreadAnnual: spreadHourly * 24 * 365,
+          longExchange: exchangeA,   // Long on lower rate
+          shortExchange: exchangeB,  // Short on higher rate
+          spreadHourly: spreadAB,
+          spreadDaily: spreadAB * 24,
+          spreadAnnual: spreadAB * 24 * 365,
+        }
+      }
+
+      if (spreadBA > maxSpread) {
+        maxSpread = spreadBA
+        bestSpread = {
+          longExchange: exchangeB,   // Long on lower rate
+          shortExchange: exchangeA,  // Short on higher rate
+          spreadHourly: spreadBA,
+          spreadDaily: spreadBA * 24,
+          spreadAnnual: spreadBA * 24 * 365,
         }
       }
     }
