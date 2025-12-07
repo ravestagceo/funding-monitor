@@ -256,7 +256,7 @@ export function SpreadHistoryModal({
                         color: 'hsl(var(--popover-foreground))',
                       }}
                       formatter={(value: number) => {
-                        const isProfit = value > 0
+                        const isProfit = value < 0
                         return [
                           `${value >= 0 ? '+' : ''}${value.toFixed(4)}%`,
                           isProfit ? 'Spread (Profitable)' : 'Spread (Unprofitable)'
@@ -344,14 +344,14 @@ export function SpreadHistoryModal({
                     <div className="font-semibold text-foreground mb-1">Profitability Analysis</div>
                     <div className="text-sm text-muted-foreground">
                       For a <span className="font-bold">Long {ex1Config.name} + Short {ex2Config.name}</span> strategy:{' '}
-                      Spread was <span className="font-bold text-green-400">profitable</span> (positive &gt;0.01%) for{' '}
+                      Spread was <span className="font-bold text-green-400">profitable</span> (negative &lt;-0.01%) for{' '}
                       <span className="font-bold text-foreground">
                         {data.statistics.profitableMinutes} out of {data.statistics.totalMinutes}
                       </span>{' '}
                       data points ({data.statistics.stabilityScore.toFixed(1)}% of the time).
-                      {data.statistics.avgSpread < 0 && (
+                      {data.statistics.avgSpread > 0 && (
                         <span className="block mt-2 text-amber-400">
-                          ⚠ Average spread is negative - {ex2Config.name} funding rate is typically higher!
+                          ⚠ Average spread is positive - {ex1Config.name} funding rate is typically higher (unprofitable)!
                         </span>
                       )}
                     </div>

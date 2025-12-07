@@ -142,10 +142,13 @@ export default function Home() {
   }
 
   const getSpreadColor = (spread: number) => {
-    const absSpread = Math.abs(spread)
-    if (absSpread > 0.05) return 'text-green-400 font-bold'
-    if (absSpread > 0.02) return 'text-emerald-400 font-semibold'
-    if (absSpread > 0.01) return 'text-teal-400'
+    // Negative spread = profitable, positive = unprofitable
+    if (spread < -0.05) return 'text-green-400 font-bold'
+    if (spread < -0.02) return 'text-emerald-400 font-semibold'
+    if (spread < -0.01) return 'text-teal-400'
+    if (spread > 0.05) return 'text-red-400 font-bold'
+    if (spread > 0.02) return 'text-orange-400 font-semibold'
+    if (spread > 0.01) return 'text-yellow-400'
     return 'text-gray-400'
   }
 
@@ -187,12 +190,11 @@ export default function Home() {
   }
 
   const getStabilityBadge = (spreadHourly: number) => {
-    // Simple heuristic: higher spread = potentially more stable opportunity
-    const absSpread = Math.abs(spreadHourly)
-    if (absSpread > 0.05) return { variant: 'success' as const, label: 'High', tooltip: 'Strong arbitrage opportunity' }
-    if (absSpread > 0.02) return { variant: 'secondary' as const, label: 'Med', tooltip: 'Moderate opportunity' }
-    if (absSpread > 0.01) return { variant: 'outline' as const, label: 'Low', tooltip: 'Minimal opportunity' }
-    return { variant: 'destructive' as const, label: 'None', tooltip: 'Not profitable' }
+    // Negative spread = profitable
+    if (spreadHourly < -0.05) return { variant: 'success' as const, label: 'High', tooltip: 'Strong profitable spread' }
+    if (spreadHourly < -0.02) return { variant: 'secondary' as const, label: 'Med', tooltip: 'Moderate profitable spread' }
+    if (spreadHourly < -0.01) return { variant: 'outline' as const, label: 'Low', tooltip: 'Minimal profitable spread' }
+    return { variant: 'destructive' as const, label: 'Unprofitable', tooltip: 'Not profitable - positive spread' }
   }
 
   const handleRowClick = (spread: MultiExchangeSpread) => {

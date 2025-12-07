@@ -103,9 +103,13 @@ export default function MatrixPage() {
   }
 
   const getSpreadColor = (spread: number) => {
-    if (spread > 0.05) return 'text-green-400 font-bold'
-    if (spread > 0.02) return 'text-emerald-400 font-semibold'
-    if (spread > 0.01) return 'text-teal-400'
+    // Negative spread = profitable, positive = unprofitable
+    if (spread < -0.05) return 'text-green-400 font-bold'
+    if (spread < -0.02) return 'text-emerald-400 font-semibold'
+    if (spread < -0.01) return 'text-teal-400'
+    if (spread > 0.05) return 'text-red-400 font-bold'
+    if (spread > 0.02) return 'text-orange-400 font-semibold'
+    if (spread > 0.01) return 'text-yellow-400'
     return 'text-gray-400'
   }
 

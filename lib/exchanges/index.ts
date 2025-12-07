@@ -128,6 +128,11 @@ export function buildMultiExchangeSpreads(
 /**
  * Find the best spread opportunity between all exchange pairs
  * Returns the pair with highest absolute hourly spread
+ *
+ * LOGIC: For Long Ex1 + Short Ex2 strategy:
+ * - Spread = Ex1_rate - Ex2_rate (PRESERVING SIGN!)
+ * - Negative spread = PROFITABLE (Ex1 < Ex2, we receive more from long than pay for short)
+ * - Positive spread = UNPROFITABLE (Ex1 > Ex2, we pay more for short than receive from long)
  */
 function findBestSpread(
   exchangeRates: Map<ExchangeId, NormalizedFundingRate>
@@ -144,31 +149,21 @@ function findBestSpread(
       const [exchange1, rate1] = exchanges[i]
       const [exchange2, rate2] = exchanges[j]
 
-      // Calculate spread: rate1 - rate2
+      // Calculate spread: rate1 - rate2 (KEEP THE SIGN!)
       const spreadHourly = (rate1.hourlyRate - rate2.hourlyRate) * 100
       const absSpread = Math.abs(spreadHourly)
 
       if (absSpread > maxAbsSpread) {
         maxAbsSpread = absSpread
 
-        // Determine long/short based on spread direction
-        // Positive spread = rate1 > rate2, so short rate1, long rate2
-        if (spreadHourly > 0) {
-          bestSpread = {
-            longExchange: exchange2,
-            shortExchange: exchange1,
-            spreadHourly: absSpread,
-            spreadDaily: absSpread * 24,
-            spreadAnnual: absSpread * 24 * 365,
-          }
-        } else {
-          bestSpread = {
-            longExchange: exchange1,
-            shortExchange: exchange2,
-            spreadHourly: absSpread,
-            spreadDaily: absSpread * 24,
-            spreadAnnual: absSpread * 24 * 365,
-          }
+        // Always Long on exchange1, Short on exchange2
+        // The spread sign tells us if it's profitable
+        bestSpread = {
+          longExchange: exchange1,
+          shortExchange: exchange2,
+          spreadHourly: spreadHourly,  // KEEP THE SIGN!
+          spreadDaily: spreadHourly * 24,
+          spreadAnnual: spreadHourly * 24 * 365,
         }
       }
     }
