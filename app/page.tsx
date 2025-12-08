@@ -392,7 +392,10 @@ export default function Home() {
                           {longRate?.markPrice && shortRate?.markPrice ? (
                             <div className="font-mono text-xs">
                               {(() => {
-                                const priceSpread = ((longRate.markPrice - shortRate.markPrice) / shortRate.markPrice) * 100
+                                // Price arbitrage profit: (ShortPrice - LongPrice) / LongPrice
+                                // Positive = profitable (buy low on long exchange, sell high on short exchange)
+                                // Negative = unprofitable (would buy high, sell low)
+                                const priceSpread = ((shortRate.markPrice - longRate.markPrice) / longRate.markPrice) * 100
                                 return (
                                   <span className={priceSpread >= 0 ? 'text-green-400' : 'text-red-400'}>
                                     {priceSpread >= 0 ? '+' : ''}{priceSpread.toFixed(2)}%

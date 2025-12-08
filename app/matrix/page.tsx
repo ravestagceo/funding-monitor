@@ -325,7 +325,10 @@ export default function MatrixPage() {
                             const longRate = spread.exchanges[spread.bestSpread.longExchange]
                             const shortRate = spread.exchanges[spread.bestSpread.shortExchange]
                             if (longRate?.markPrice && shortRate?.markPrice) {
-                              const priceSpread = ((longRate.markPrice - shortRate.markPrice) / shortRate.markPrice) * 100
+                              // Price arbitrage profit: (ShortPrice - LongPrice) / LongPrice
+                              // Positive = profitable (buy low on long exchange, sell high on short exchange)
+                              // Negative = unprofitable (would buy high, sell low)
+                              const priceSpread = ((shortRate.markPrice - longRate.markPrice) / longRate.markPrice) * 100
                               return (
                                 <span className={`font-mono text-xs ${priceSpread >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                   {priceSpread >= 0 ? '+' : ''}{priceSpread.toFixed(2)}%
